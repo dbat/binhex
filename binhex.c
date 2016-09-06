@@ -20,9 +20,9 @@ typedef enum {tobin, tohex} cvtmode;
 extern __stdcall void _bin2hex(char * source, char * dest, int count, bool uppercase);
 extern __stdcall void _hex2bin(char * source, char * dest, int count);
 
-//assemble: tasm32 /q /la /ml /zn bin2hex.asm - all those switches are don't really matters :)
+//assemble: tasm32 /q /la /ml /zn bbq.asm - all those switches are don't really matters :)
 //compile:  bcc32 /c binhex.c
-//link:     ilink32 c0x32 binhex bin2hex,binhex,,import32 cw32
+//link:     ilink32 c0x32 binhex bbq,binhex,,import32 cw32
 
 int showhelp(_TCHAR* arg)
 {
