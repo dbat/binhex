@@ -2,18 +2,18 @@
 
 Translate/convert binary files to their hexadecimal representation (and vice versa)
 
- ====================================================
+/*
  Copyright (c) 2003-2009
  Adrian H, Ray AF & Raisa NF of PT SOFTINDO, Jakarta.
  Email: aa _AT_ softindo.net
  All rights reserved.
- ====================================================
+*/
 
- Version: 0.2.0
- Created: 2005.05.10
- Revised: 2009.07.11
+ - Version: 0.2.0
+ - Created: 2005.05.10
+ - Revised: 2009.07.11
 
- Compiled with Borland's BCC version 5.5.1 (Freeware)
+ - Compiled with Borland's BCC version 5.5.1 (Freeware)
 
  SYNOPSYS:
         Truncate, create, extend or shift file content as specified size.
