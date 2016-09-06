@@ -1,5 +1,7 @@
 # binhex
+
 Translate/convert binary files to their hexadecimal representation (and vice versa)
+
  ====================================================
  Copyright (c) 2003-2009
  Adrian H, Ray AF & Raisa NF of PT SOFTINDO, Jakarta.
