@@ -12,6 +12,11 @@ Translate/convert binary files to their hexadecimal representation (and vice ver
     Revised: 2009.11.02
     
     Assembled/compiled with Borland's TASM32 and BCC 5.5 (Freeware)
+    
+    //assemble: tasm32 /q /la /ml /zn bbq.asm - all those switches are don't really matters :)
+    //compile:  bcc32 /c binhex.c
+    //link:     ilink32 c0x32 binhex bbq,binhex,,import32 cw32
+
 
  SYNOPSYS:
  
