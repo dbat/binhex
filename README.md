@@ -54,21 +54,25 @@ Translate/convert binary files to their hexadecimal representation (and vice ver
  EXAMPLES:
 
    - Create .hex file from each of these binary files:
+
         binhex.exe -h sample.dat resource.dll pie.jpg others.iso
 
    - Create .bin file from 1G pi hex data:
+   - 
         (this program took less than 4 sec. while winzip took 2.5 min.
         7z took 20+ minutes and brought down all CPU cores)
 
         binhex.exe -b pi_1024M_hex.txt
 
    - Create .bin file from 8G pi hex data:
+   - 
         (this program took 27 sec (cached), 7z took it in 2h:49min
         and our winzip couldn't even handle it, too big!)
 
         binhex.exe -b pi_8192M_hex.txt
 
    - note:
+   
         pi hex supposed to contain perfect random data
         binhex.exe -b creates exactly 50% of original size,
         other packers will produce a slightly larger result.
