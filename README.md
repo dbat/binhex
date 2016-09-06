@@ -1,6 +1,6 @@
 # binhex
 
-Translate/convert binary files to their hexadecimal representation (and vice versa)
+Translate/convert binary files to their hexadecimal representation (and vice versa: bin2hex hex2bin)
 
     Copyright (c) 2003-2011
     Adrian H, Ray AF & Raisa NF of PT SOFTINDO, Jakarta.
@@ -10,7 +10,7 @@ Translate/convert binary files to their hexadecimal representation (and vice ver
     Version: 0.1.3 build 006
     Created: 2006.03.14
     Revised: 2009.11.02
-
+    
     Assembled/compiled with Borland's TASM32 and BCC 5.5 (Freeware)
 
  SYNOPSYS:
