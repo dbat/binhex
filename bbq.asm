@@ -6,6 +6,12 @@ PAGE 255, 255
 ; All right reserved
 ;
 
+; ---------
+; Synopsys:
+;   Conversion library hex2bin and bin2hex
+;   Please read on the respective procedures to see what they do
+
+
 .486
 .model flat, stdcall
 option casemap: none
