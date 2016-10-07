@@ -52,7 +52,7 @@ int showhelp(_TCHAR* arg)
 	printf(" \t       -H or -X: translate to hexadecimal (uppercase).\n \n");
 	printf(" \tfilenames: one or more files to be translated.\n\n");
 	//printf(" \toption -u (optional): use uppercase when translating to hex.\n\n");	
-	printf(" \NOTES:\n");
+	printf(" NOTES:\n");
 	printf(" \tFor each processed file, a NEW file created with the same\n");
 	printf(" \tname as the original, but with additional extension: \".hex\"\n");
 	printf(" \tor \".bin\". respectively according to the option switch.\n\n");
