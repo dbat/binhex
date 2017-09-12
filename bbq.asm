@@ -5,7 +5,6 @@ PAGE 255, 255
 ; email: aa _at_ softindo.net
 ; All right reserved
 ;
-
 ; ---------
 ; Synopsys:
 ;   Conversion library hex2bin and bin2hex
@@ -15,6 +14,8 @@ PAGE 255, 255
 .486
 .model flat, stdcall
 option casemap: none
+
+LOCALS @@
 
 .data
 ; *************************************************************************
@@ -36,7 +37,7 @@ option casemap: none
     db 0,10,11,12,13,14,15,0,0,0,0,0,0,0,0,0
     db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
     db 0,10,11,12,13,14,15,0,0,0,0,0,0,0,0,0
-    db 90h dup(0) ; a necessary bloat
+    db 90h dup(0) ; a necessary bloat to avoid cmp
 
 .code
 ; *************************************************************************
@@ -56,7 +57,7 @@ __bin2hex proc source:DWORD, dest:DWORD, count:DWORD, uppercase: DWORD
     mov ecx, count
     mov ebx, uppercase
     lea esi, [esi+ecx-1]                  ; end of source (tail)
-    lea edi, [edi+ecx*2-2]                ; end of source (tail)
+    lea edi, [edi+ecx*2-2]                ; end of dest (tail)
 
     test ebx,ebx              ; uppercase?
     setne bl                  ; if yes
@@ -66,11 +67,11 @@ __bin2hex proc source:DWORD, dest:DWORD, count:DWORD, uppercase: DWORD
     xor eax,eax
     lea ebx, [ebx + hexLo]
 
-  @Loop:
+  @@Loop:
     sub ecx, 1                          ; at the end of data?
-    jl @Done                            ; out
+    jl @@Done                            ; out
 
-  @Begin:
+  @@Begin:
     movzx edx, byte ptr [esi]           ; get byte
     mov al, byte ptr [esi]              ; get byte copy
     shr dl, 4                           ; get hi nibble -> become lo byte / swapped
@@ -80,103 +81,15 @@ __bin2hex proc source:DWORD, dest:DWORD, count:DWORD, uppercase: DWORD
     sub esi, 1
     mov [edi], dx                       ; put translated str
     sub edi, 2
-    jmp @Loop                           ;
+    jmp @@Loop                           ;
 
-  @Done:
+  @@Done:
     pop edi
     pop esi
     pop ebx
     ret
 
 __bin2hex endp
-
-; *************************************************************************
-align 4
-public __bin2base2
-__bin2base2 proc source:DWORD, dest:DWORD, count:DWORD
-; translate data to its binary digit representation
-; dest must have enough capacity 8 x of count
-; source and dest can be the same but should not overlap
-; (if overlapped, DEST must be equal or in higher address than source)
-    push ebx
-    push esi
-    push edi
-
-    mov esi, source
-    mov edi, dest
-    mov ecx, count
-    lea ebx, base2tab
-    lea esi, [esi+ecx-1]                  ; end of source (tail)
-    lea edi, [edi+ecx*8-8]                ; end of source (tail)
-
-  @Loop:
-    sub ecx, 1                          ; at the end of data?
-    jl @Done                            ; out
-
-  @Begin:
-    movzx edx, byte ptr [esi]           ; get byte
-    movzx eax, byte ptr [esi]           ; get byte copy
-    shr dl, 4                           ; get hi nibble
-    and al, 0fh                         ; get lo nibble
-    mov edx, [ebx*4+edx]
-    mov eax, [ebx*4+eax]
-    sub esi, 1
-    mov [edi], edx                       ; put translated str
-    mov [edi+4], eax                       ; put translated str
-    sub edi, 8
-    jmp @Loop                           ;
-
-  @Done:
-    pop edi
-    pop esi
-    pop ebx
-    ret
-
-__bin2base2 endp
-
-; *************************************************************************
-align 4
-public __bin2base4
-__bin2base4 proc source:DWORD, dest:DWORD, count:DWORD
-; translate data to its binary digit representation
-; dest must have enough capacity 8 x of count
-; source and dest can be the same but should not overlap
-; (if overlapped, DEST must be equal or in higher address than source)
-    push ebx
-    push esi
-    push edi
-
-    mov esi, source
-    mov edi, dest
-    mov ecx, count
-    lea ebx, base4tab
-    lea esi, [esi+ecx-1]                  ; end of source (tail)
-    lea edi, [edi+ecx*4-4]                ; end of source (tail)
-
-  @Loop:
-    sub ecx, 1                          ; at the end of data?
-    jl @Done                            ; out
-
-  @Begin:
-    movzx edx, byte ptr [esi]           ; get byte
-    movzx eax, byte ptr [esi]           ; get byte copy
-    shr dl, 4                           ; get hi nibble
-    and al, 0fh                         ; get lo nibble
-    mov dx, word ptr [ebx*2+edx]
-    mov ax, word ptr [ebx*2+eax]
-    sub esi, 1
-    mov [edi], dx                       ; put translated str
-    mov [edi+2], ax                     ; put translated str
-    sub edi, 4
-    jmp @Loop                           ;
-
-  @Done:
-    pop edi
-    pop esi
-    pop ebx
-    ret
-
-__bin2base4 endp
 
 ; *************************************************************************
 align 4
@@ -202,9 +115,9 @@ __hex2bin proc source:DWORD, dest:DWORD, count:DWORD
     xor eax,eax
     xor edx,edx
 
-  @Loope:
+  @@Loope:
     sub ecx,2
-    jl @done
+    jl @@done
     mov dl, byte ptr [esi]
     mov al, byte ptr [esi+1]
     mov dl, byte ptr [ebx+edx]
@@ -214,17 +127,17 @@ __hex2bin proc source:DWORD, dest:DWORD, count:DWORD
     add edx, eax
     mov byte ptr [edi], dl
     add edi, 1
-    jmp @Loope
+    jmp @@Loope
 
-  @done:
+  @@done:
     not ecx
-    jcxz @done2
+    jcxz @@done2
     mov dl, byte ptr [esi]
     mov dl, byte ptr [ebx+edx]
     shl edx, 4
     mov byte ptr [edi], dl
 
-  @done2:
+  @@done2:
     pop edi
     pop esi
     pop ebx
@@ -232,4 +145,424 @@ __hex2bin proc source:DWORD, dest:DWORD, count:DWORD
 
 __hex2bin endp
 
+; *************************************************************************
+align 4
+public __bin2base2
+__bin2base2 proc source:DWORD, dest:DWORD, count:DWORD
+; translate data to its binary digit representation
+; dest must have enough capacity 8 x of count
+; source and dest can be the same but should not overlap
+; (if overlapped, DEST must be equal or in higher address than source)
+    push ebx
+    push esi
+    push edi
+
+    mov esi, source
+    mov edi, dest
+    mov ecx, count
+    lea ebx, base2tab
+    lea esi, [esi+ecx-1]                  ; end of source (tail)
+    lea edi, [edi+ecx*8-8]                ; end of dest (tail)
+
+  @@Loop:
+    sub ecx, 1                          ; at the end of data?
+    jl @@Done                            ; out
+
+  @@Begin:
+    movzx edx, byte ptr [esi]           ; get byte
+    movzx eax, byte ptr [esi]           ; get byte copy
+    shr dl, 4                           ; get hi nibble
+    and al, 0fh                         ; get lo nibble
+    mov edx, [ebx*4+edx]
+    mov eax, [ebx*4+eax]
+    sub esi, 1
+    mov [edi], edx                       ; put translated str
+    mov [edi+4], eax                       ; put translated str
+    sub edi, 8
+    jmp @@Loop                           ;
+
+  @@Done:
+    pop edi
+    pop esi
+    pop ebx
+    ret
+
+__bin2base2 endp
+
+; *************************************************************************
+align 4
+public __bin2base4
+__bin2base4 proc source:DWORD, dest:DWORD, count:DWORD
+; translate data to its binary digit representation
+; no checking, dest must have enough capacity 4 x of count
+; source and dest can be the same but should not overlap
+; (if overlapped, DEST must be equal or in higher address than source)
+    push ebx
+    push esi
+    push edi
+
+    mov esi, source
+    mov edi, dest
+    mov ecx, count
+    lea ebx, base4tab
+    lea esi, [esi+ecx-1]                  ; end of source (tail)
+    lea edi, [edi+ecx*4-4]                ; end of dest (tail)
+
+  @@Loop:
+    sub ecx, 1                          ; at the end of data?
+    jl @@Done                            ; out
+
+  @@Begin:
+    movzx edx, byte ptr [esi]           ; get byte
+    movzx eax, byte ptr [esi]           ; get byte copy
+    shr dl, 4                           ; get hi nibble
+    and al, 0fh                         ; get lo nibble
+    mov dx, word ptr [ebx*2+edx]
+    mov ax, word ptr [ebx*2+eax]
+    sub esi, 1
+    mov [edi], dx                       ; put translated str
+    mov [edi+2], ax                     ; put translated str
+    sub edi, 4
+    jmp @@Loop                           ;
+
+  @@Done:
+    pop edi
+    pop esi
+    pop ebx
+    ret
+
+__bin2base4 endp
+
+.data
+; *************************************************************************
+  base64encode_table db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+     ; with a necessary bloat to allow hi 2 bits resulted in the same char
+     ; If you want to be even faster, use these ugly catch-all,
+     ; db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+     ; db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+     ; db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+    ;
+    ;	"A" 0x41 = 0	"Q" 9x51 = 16	"g" 0x67 = 32	"w" 0x77 = 48
+    ;	"B" 0x42 = 1	"R" 9x52 = 17	"h" 0x68 = 33	"x" 0x78 = 49
+    ;	"C" 0x43 = 2	"S" 9x53 = 18	"i" 0x69 = 34	"y" 0x79 = 50
+    ;	"D" 0x44 = 3	"T" 9x54 = 19	"j" 0x6a = 35	"z" 0x7a = 51
+    ;	"E" 0x45 = 4	"U" 9x55 = 20	"k" 0x6b = 36	"0" 0x30 = 52
+    ;	"F" 0x46 = 5	"V" 9x56 = 21	"l" 0x6c = 37	"1" 0x31 = 53
+    ;	"G" 0x47 = 6	"W" 9x57 = 22	"m" 0x6d = 38	"2" 0x32 = 54
+    ;	"H" 0x48 = 7	"X" 9x58 = 23	"n" 0x6e = 39	"3" 0x33 = 55
+    ;	"I" 0x49 = 8	"Y" 9x59 = 24	"o" 0x6f = 40	"4" 0x34 = 56
+    ;	"J" 0x4a = 9	"Z" 9x5a = 25	"p" 0x70 = 41	"5" 0x35 = 57
+    ;	"K" 0x4b = 10	"a" 9x61 = 26	"q" 0x71 = 42	"6" 0x36 = 58
+    ;	"L" 0x4c = 11	"b" 9x62 = 27	"r" 0x72 = 43	"7" 0x37 = 59
+    ;	"M" 0x4d = 12	"c" 9x63 = 28	"s" 0x73 = 44	"8" 0x38 = 60
+    ;	"N" 0x4e = 13	"d" 9x64 = 29	"t" 0x74 = 45	"9" 0x39 = 61
+    ;	"O" 0x4f = 14	"e" 9x65 = 30	"u" 0x75 = 46	"+" 0x2b = 62
+    ;	"P" 0x50 = 15	"f" 9x66 = 31	"v" 0x76 = 47	"/" 0x2f = 63
+    ;
+    ;   note that the blocks are:
+    ;     0x2b, 0x2f	"+" and "/"	= [61, 62]
+    ;     0x30 - 0x39	"0" - "9"	= [52..61]
+    ;     0x41 - 0x5a	"A" - "Z"	= [0..25]
+    ;         0x41 - 0x4f  "A" - "O"	=    [0..14]
+    ;         0x50 - 0x5a  "P" - "Z"	=    [15..25]
+    ;     0x61 - 0x7a	"a" - "z"	= [26..51]
+    ;         0x61 - 0x6f  "a" - "o"	=    [16..40]
+    ;         0x50 - 0x5a  "p" - "z"	=    [41..51]
+
+
+  base64decode_table db 2bh dup(0)
+    db 61,0,0,0,62					; 0x2b-0x2f
+    db 52,53,54,55,56,57,58,59,60,61,00,00,00,00,00,00	; 0x30-0x3f
+    db 00,00,01,02,03,04,05,06,07,08,09,10,11,12,13,14	; 0x40-0x4f
+    db 15,16,17,18,19,20,21,22,23,24,25,00,00,00,00,00	; 0x50-0x5f
+    db 00,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40	; 0x60-0x6f
+    db 41,42,43,44,45,46,47,48,49,50,51,00,00,00,00,00	; 0x70-0x7f
+
+.code
+; *************************************************************************
+align 4
+public __base64encode
+ __base64encode proc source:DWORD, dest:DWORD, count:DWORD
+; translate data to its base64 digit representation
+; returns EAX: bytes encoded = (count + 2) / 3 * 4, always divisible by 4
+;
+; This function using backward direction scan
+;
+; count MUST be divisible by 3 for incomplete translation/conversion
+; (ie. not a complete source, more data expected to come)
+;
+; no check, dest must have enough capacity 4/3 x of count
+; source and dest can be the same but should not overlap
+; (if overlapped, DEST must be equal or in higher address than source)
+
+    mov ecx,count
+    test ecx,ecx
+    jnz @@Start
+    xor eax,eax
+    ret
+
+  @@Start:
+    push ebx
+    push esi
+    push edi
+
+    mov esi, source
+    mov edi, dest
+    mov eax, ecx
+    mov ecx, 3
+
+    xor edx, edx
+    div ecx
+
+    ; calculate result count
+    ; xor ecx,ecx
+    test edx,edx
+    setnz cl
+    add ecx,eax
+    shl ecx,2                           ; dest count = 4 x eax
+    push ecx				; put result in stack
+
+    lea ebx, base64encode_table
+    lea esi, [esi+eax*2-3]		; end of source (tail)
+    lea edi, [edi+eax*4-4]		; end of dest (tail)
+    add esi,eax				; src count = 3 x eax
+
+    push ebp ; using ebp, any disturbance will throw a very nasty error!
+    mov ebp, eax
+
+    test edx,edx
+    jz @@Loop;				; rem:0 => divisible by 3
+
+  @@Fixtail:
+    ; caution ----------------------------------------------------------
+    ; watch out for referenced mem. when source and dest are equal!
+    ; do not write to the block mem before calculation is really done
+    ;-------------------------------------------------------------------
+    movzx eax, byte ptr[esi+3]
+    shr al, 2
+    mov ecx,"===="
+
+    mov cl, byte ptr [ebx+eax]
+    mov al, byte ptr[esi+3]			; refetch
+
+    and al, 3		; only 2 bits needed
+    shl al, 4		; (hi portion of ch#2)
+
+    cmp dl,1
+    mov dl, byte ptr[esi+3+1]
+    mov ch, byte ptr [ebx+eax]
+    ; caution ----------------------------------------------------------
+    ;-- mov ch, byte ptr[esi+3+1]	; if src/dest equal, these two lines -
+    ;-- mov [edi+4+1], cl		;  might refer to the same address
+    ;-------------------------------------------------------------------
+    mov dh, dl				; copy
+    mov [edi+4], ecx                    ; write, at last
+    jz @@Loop;				; done for rem:1
+
+  @@Fixtail2:
+    ;mov [edi+4+2], dx                    ; write, at last
+
+    and dh, 15	; only 4 bits needed for hi part of Ch#3
+    shr dl, 4	; lo part of Ch#2
+    shl dh, 2	; hi part of Ch#3
+    or al, dl	; al had hi part of Ch#2
+    movzx edx, dh
+    mov al, byte ptr [ebx+eax]
+    mov dl, byte ptr [ebx+edx]
+
+    mov [edi+4+1], al			; write 1 byte = 2 b64
+    mov [edi+4+2], dl			; write 1 byte = 2 b64
+    jmp @@Loop
+
+  @@Loop:
+    sub ebp,1                      ; at the end of data?
+    jl @@Done                       ; out
+
+  @@Begin1: ; 3 bytes round ; OK but weird
+    ; fetch wth big-endian scheme, but must be stored as little-endian
+    ;- movzx edx,byte ptr[esi]
+    ;- shl edx,16
+    mov edx,[esi]
+    movzx eax, byte ptr [esi+2]		; get 3rd-byte
+    bswap edx
+    shr edx,8
+    ;- mov dh, byte ptr [esi+1]		; get 2nd-byte
+    ;- mov dl, byte ptr [esi+2]		; edx: big endian string (3bytes)
+    and al,63
+    shr edx,6                           ; arithmatic ops use big-endian value
+    mov ch, byte ptr [ebx+eax]          ; storing use little-endian scheme
+    mov al,dl				; fetch
+    and al,63
+    shr edx,6
+    mov cl, byte ptr [ebx+eax]
+    mov al,dl				; fetch 3rd b64
+    shr edx,6
+    and al,63
+    and dl,63
+    mov ah, byte ptr [ebx+eax]
+    mov al, byte ptr [ebx+edx]
+    sub esi,3
+    mov [edi], ax
+    mov [edi+2], cx
+    sub edi,4
+    jmp @@Loop                           ;
+
+  @@Done:
+    pop ebp
+    pop eax		; result count should be divisible by 4
+    pop edi
+    pop esi
+    pop ebx
+    ret
+
+ __base64encode endp
+
+; *************************************************************************
+align 4
+public __base64decode
+__base64decode proc source:DWORD, dest:DWORD, count:DWORD
+; Translate base64 data to binary
+; returns EAX: bytes decoded = (count / 4 * 3) (+0/+1/+2 bytes)
+; returned size might be +1 or +2 bytes, depends on circumtances
+;
+; This function using forward direction scan of source and dest
+;
+; The only valid padding is "=" or "==" at the very last 4 chars block,
+; otherwise it will be silently translated as 0 (equal with "A" in base64)
+; for instance, "====" decoded as  "AA==", "==A=" decoded as "AAA=",
+; "===9" will be decoded as "AAA9" since all of "=" are malformed.
+;
+; If count is not divisible by 4, then char "=" is assumed as padding,
+; no literal padding allowed anymore, any other occurences of "=" will
+; be silently translated as 0 ("A")
+;
+; Any invalid/unknown base64 characters will be simply translated as 0 as well
+;
+; Normally, padding only affect result size: -0, -1 or -2, unless on
+; malformed input base64, i.e.: count is not divisible by 4, AND source
+; has additional (trailing) data which can be unintentionally processed
+; (because decoding is always performed in 4 bytes block) - fixed. no extra data read anymore
+;
+; count SHOULD be divisible by 4 for incomplete translation/conversion
+; (ie. not a complete source, more data expected to come).
+;
+; source and dest can be the same but should not overlap
+; (if overlapped, DEST must be equal or in higher address than source)
+;
+; dest must have enough space for 1 or 2 bytes extra padding translation as 0
+; ie. dest size must be: (count + 3) / 4 * 3
+
+    mov ecx,count
+    cmp ecx,1
+    ja @@Start
+    xor eax,eax
+    ret
+
+ @@Start:
+    push ebx
+    push esi
+    push edi
+
+    mov esi, source
+    mov eax,ecx
+    mov edi, dest
+
+    shr eax,2; div 4
+    lea ebx, base64decode_table
+    lea eax,[eax*2+eax]
+
+    push eax	; count / 4 *3
+
+    movzx eax, word ptr [esi+ecx-2]
+    push eax	; last 2 bytes (could be overwritten if source=dest and count < 9)
+
+  @@Loop:
+    sub ecx,4
+    jl @@LastCheck
+
+    movzx edx, byte ptr [esi]
+    movzx eax, byte ptr [esi+1]
+    and dl, 7fh
+    and al, 7fh
+    mov dl, byte ptr [ebx+edx]
+    mov al, byte ptr [ebx+eax]
+    shl edx, 6
+    or edx, eax
+    mov al, byte ptr [esi+2]
+    and al, 7fh
+    shl edx, 6
+    mov al, byte ptr [ebx+eax]
+    or edx, eax
+    mov al, byte ptr [esi+3]
+    shl edx, 6
+    mov al, byte ptr [ebx+eax]
+    add esi, 4
+    or eax, edx
+    shr edx, 16
+    mov byte ptr[edi], dl
+    mov byte ptr[edi+1], ah
+    mov byte ptr[edi+2], al
+    add edi,3
+
+    jmp @@Loop
+
+  @@LastCheck:
+    pop edx		;// 2 chars at end  
+    add ecx,4
+    jnz @@LastCheckMod	;// size is not divisible by 4
+
+  @@LastCheckZero:
+    mov eax,[esp]
+    movzx edx, word ptr [esi+2]
+    cmp dh, "="
+    jnz @@Done
+    dec eax
+    cmp dl, "="
+    mov [esp], eax
+    jnz @@Done
+    dec eax
+    mov [esp], eax
+    jmp @@Done
+
+  @@LastCheckMod: ;// size is not divisible by 4
+    ; 1 byte source => 1 byte dest
+    ; 2 byte source => 2 byte dest
+    ; 3 byte source => 2 byte dest
+    inc dword ptr [esp]
+    movzx eax, byte ptr [esi]
+    movzx edx, byte ptr [esi+1]
+    and al,7fh
+    and dl,7fh
+    mov al, byte ptr [ebx+eax]
+    mov dl, byte ptr [ebx+edx]
+    shl eax,2
+    mov byte ptr[edi], al
+    shl eax,4
+    dec ecx
+    jz @@Done
+    or eax,edx
+    inc dword ptr [esp]
+    shl eax,4
+    mov dl, byte ptr [esi+2]
+    mov byte ptr[edi], ah
+    mov byte ptr[edi+1], al
+    and dl,7fh
+    dec ecx
+    jz @@Done
+    mov dl, byte ptr [ebx+edx]
+    shr edx,2
+    or eax,edx
+    mov byte ptr[edi+1], al
+    jmp @@Done
+
+  @@Done:
+    pop eax
+    pop edi
+    pop esi
+    pop ebx
+
+    ret
+
+__base64decode endp
 end
