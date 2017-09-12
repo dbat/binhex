@@ -7,9 +7,9 @@ Translate/convert binary files to their hexadecimal representation (and vice ver
     Email: aa _AT_ softindo.net
     All rights reserved.
 
-    Version: 0.1.3 build 006
+    Version: 0.1.4 build 016
     Created: 2006.03.14
-    Revised: 2009.11.02
+    Revised: 2011.09.02
     
     Assembled/compiled with Borland's TASM32 and BCC 5.5 (Freeware)
     
@@ -22,13 +22,15 @@ Translate/convert binary files to their hexadecimal representation (and vice ver
  
         Translate/convert binary files to their hexadecimal
         representation (and vice versa)
+        
+        Base64 encode/decode (See .asm source code for more information)
 
-        Originally created to compress huge pi hex data, produces
-        smaller and significantly faster than ordinary packer (zip,7z)
+        Originally created to compress a huge 8GB pi hex data, produces
+        smaller and significantly faster than ordinary packer (zip, 7z)
 
  USAGE:
  
-        binhex.exe -b|-h filenames...
+        binhex.exe -b|-h|-e|-d filenames...
 
  ARGUMENTS:
  
@@ -37,6 +39,7 @@ Translate/convert binary files to their hexadecimal representation (and vice ver
         option -b: translate target file to binary (compress).
                -h or -x: translate to hexadecimal (expand).
                -H or -X: translate to hexadecimal (uppercase).
+               -e, -d: base64 encode / decode.
 
         filenames: one or more files to be translated.
 
@@ -44,7 +47,8 @@ Translate/convert binary files to their hexadecimal representation (and vice ver
  
         For each processed file, a NEW file created with the same
         name as the original, but with additional extension: ".hex"
-        or ".bin". respectively according to the option switch.
+        ".bin", ".b64" (base64) or ".dec" (decoded), respectively,
+        according to the option switch.
 
         The .bin file will be half and the .hex will be twice in
         size of the original file size.
