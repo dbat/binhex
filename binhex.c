@@ -8,7 +8,7 @@
 const unsigned long BLOCK = 3 << POWERSHIFT;
 
 typedef enum {false, true} bool;
-typedef enum {tobin, tohex, enc64, dec64, tobits, bits2bin} cvtmode;
+typedef enum {tobin, tohex, enc64, dec64, tobits, bits2bin, trim64, delim64 } cvtmode;
 
 //__bin2hex proc source:DWORD, dest:DWORD, count:DWORD, uppercase: DWORD
 //__hex2bin proc source:DWORD, dest:DWORD, count:DWORD
@@ -18,18 +18,23 @@ typedef enum {tobin, tohex, enc64, dec64, tobits, bits2bin} cvtmode;
 #define _hex2bin __hex2bin
 #define _base64encode __base64encode
 #define _base64decode __base64decode
+//#define _base64encode_LF __base64encode_LF
+#define _base64trim __base64trim
+#define _base64delim __base64delim
 
 // in-place conversion, source an dest may be the same.
 extern __stdcall void _bin2hex(char * source, char * dest, int count, bool uppercase);
 extern __stdcall void _hex2bin(char * source, char * dest, int count);
 extern __stdcall unsigned int _base64encode(char * source, char * dest, int count);
 extern __stdcall unsigned int _base64decode(char * source, char * dest, int count);
+extern __stdcall unsigned int _base64trim(char * source, char * dest, int count);
+extern __stdcall unsigned int _base64delim(char * source, char * dest, int count);
 
 // assemble:	tasm32 /q /la /ml /zn bin2hex.asm - all those switches are don't really matters :)
 // compile:	bcc32 /c binhex.c
 // link:	ilink32	c0x32	binhex	BBQ,binhex,,import32	cw32
 
-const _TCHAR* ext[] = { ".bin", ".hex", ".b64", ".dec", ".bit", "dat" };
+const _TCHAR* ext[] = { ".bin", ".hex", ".enc", ".dec", ".bit", ".dat", "-trim", "-crlf" };
 
 int showhelp(_TCHAR* arg)
 {
@@ -42,34 +47,44 @@ int showhelp(_TCHAR* arg)
 	}
 
 	printf(" \n");
-	printf(" Version: 0.1.4 build 016\n");
+	printf(" Version: 0.1.5 build 019\n");
 	printf(" Created: 2006.03.14\n");
-	printf(" Revised: 2011.09.02\n\n");
+	printf(" Revised: 2011.09.05\n\n");
 	printf(" Assembled/compiled with Borland's TASM32 and BCC 5.5 (Freeware)\n\n");
 	printf(" SYNOPSYS:\n");
-	printf(" \tTranslate/convert binary files to their hexadecimal\n");
-	printf(" \trepresentation (and vice versa)\n\n");
-	printf(" \tBase64 encode/decode (See .asm source code for more information)\n\n");
-	printf(" \tOriginally created to compress a huge 8GB pi hex data, produces\n");
-	printf(" \tsmaller and significantly faster than ordinary packer (zip, 7z)\n\n");
+	printf(" \t- Translate binary files to their hexadecimal representation\n");
+	printf(" \t  (and vice versa)\n");
+	printf("\n");
+	printf(" \t- Base64 encode/decode (See .asm source code for more info)\n");
+	printf("\n");
+	printf(" \Originally created to compress a huge 8GB pi hex data, produces\n");
+	printf(" \smaller and significantly faster than ordinary packer (zip, 7z).\n");
+	printf("\n");
 	printf(" USAGE:\n");
-	printf(" \t%s -b|-h|-e|-d filenames...\n\n", s);
+	printf(" \t%s <switch> <filenames>...\n\n", s);
 	printf(" ARGUMENTS:\n");
 	printf(" \tThis program expects at least 2 arguments:\n\n");
-	printf(" \tOption -b: translate target file to binary (compress)\n");
-	printf(" \t       -h or -x: translate to hexadecimal (expand)\n");
-	printf(" \t       -H or -X: translate to hexadecimal (uppercase)\n");
-	printf(" \t       -e, -d: base64 encode / decode\n");
-	//printf(" \t       -i, -n: base2 encode / decode (boolean bits)\n");
+	printf(" \t<switch>: You may use slash: \"/\" intead of hyphen/dash: \"-\"\n");
+	printf(" \t  -b: translate target file to binary (compress)\n");
+	printf(" \t  -h or -x: translate to hexadecimal (expand)\n");
+	printf(" \t  -H or -X: translate to hexadecimal (uppercase)\n");
 	printf("\n");
-	printf(" \tFilenames: one or more files to be translated.\n\n");
+	printf(" \t  -e, -d: base64 encode/decode\n");
+	printf(" \t  -l: prettify base64 encoded data paragraphs with CR/LF\n");
+	printf(" \t  -t: trim CR/LF (also any other invalid base64 characters)\n");
+	//printf(" \t  -i, -n: base2 encode / decode (boolean bits)\n");
+	printf("\n");
+	printf(" \t<filenames>: One or more files to be translated.\n\n");
 	//printf(" \toption -u (optional): use uppercase when translating to hex.\n\n");	
 	printf(" NOTES:\n");
-	printf(" \tFor each processed file, a NEW file created with the same\n");
-	printf(" \tname as the original, but with additional extension: \".hex\",\n");
-	//printf(" \t\".bin\", \".b64\" (base64), \".dec\" (decoded), \".bit\" or \".dat\",\n");
+	printf(" \tFor each processed file, a new file will be created with\n");
+	printf(" \tthe same name as original, but with additional extension:\n");
+	printf(" \t\"%s\", \"%s\", \"%s\" (base64 encoded), \"%s\" (decoded),\n", ext[tobin], ext[tohex], ext[enc64], ext[dec64]);
+
+	//printf(" \t\"%s\" (delimited), \"%s\" (trimmed), \"%s\", \"%s\" etc.\n", ext[delim64], ext[trim64], ext[tobits], ext[bits2bin]);
 	//printf(" \trespectively, according to the option/switch given.\n\n");
-	printf(" \t\".bin\", \".b64\" (base64) or \".dec\" (decoded), respectively,\n");
+
+	printf(" \t\"%s\" (delimited) or \"%s\" (trimmed), respectively,\n", ext[delim64], ext[trim64]);
 	printf(" \taccording to the option/switch given.\n\n");
 
 	//printf(" \tThe .bin file will be half and the .hex will be twice in\n");
@@ -202,18 +217,18 @@ int cvtohex(HANDLE source, HANDLE dest, char * Buf, bool uppercase)
 int b64enc(HANDLE source, HANDLE dest, char * Buf)
 {
 	unsigned long got, ret;
-	ReadFile(source, Buf, BLOCK >> 1, &got, NULL);
+	ReadFile(source, Buf, (BLOCK >> 2) * 3, &got, NULL);
 	//printf("got %d bytes. Buf: %p\n", got, Buf); getch();
 	while (got)
 	{
 		ret = _base64encode(Buf, Buf, got);
 		//printf("got to be: %d bytes. Buf: %p\n", got, Buf); getch();
 		WriteFile(dest, Buf, ret, &got, NULL); printf(".");
-		if (!got) return showerr("Writing file interrupted");
-		ReadFile(source, Buf, BLOCK >> 1, &got, NULL);
+		if (!got) return showerr("Skip encoding 0 filesize");
+		ReadFile(source, Buf, (BLOCK >> 2) * 3, &got, NULL);
 	}
 	//printf("\n");
-    SetEndOfFile(dest); // truncate
+	SetEndOfFile(dest); // truncate
 	return 1;
 }
 
@@ -222,16 +237,53 @@ int b64dec(HANDLE source, HANDLE dest, char * Buf)
 	unsigned long got, ret;
 	ReadFile(source, Buf, BLOCK, &got, NULL);
 	//printf("got %d bytes. Buf: %p\n", got, Buf); getch();
+	SetEndOfFile(dest); // truncate
 	while (got)
 	{
 		ret = _base64decode(Buf, Buf, got);
 		//printf("got to be: %d bytes. Buf: %p\n", got, Buf); getch();
 		WriteFile(dest, Buf, ret, &got, NULL); printf(".");
-		if (!got) return showerr("Writing file interrupted");
+		if (!got) return showerr("Skip decoding 0 filesize");
 		ReadFile(source, Buf, BLOCK, &got, NULL);
 	}
 	//printf("\n");
     SetEndOfFile(dest); // truncate
+	return 1;
+}
+
+int b64trim(HANDLE source, HANDLE dest, char * Buf)
+{
+	unsigned long got, ret;
+	ReadFile(source, Buf, BLOCK, &got, NULL);
+	//printf("got %d bytes. Buf: %p\n", got, Buf); getch();
+	while (got)
+	{
+		ret = _base64trim(Buf, Buf, got);
+		//printf("got to be: %d bytes. Buf: %p\n", got, Buf); getch();
+		WriteFile(dest, Buf, ret, &got, NULL); printf(".");
+		if (!got) return showerr("Skip trimming 0 filesize");
+		ReadFile(source, Buf, BLOCK, &got, NULL);
+	}
+	//printf("\n");
+    SetEndOfFile(dest); // truncate
+	return 1;
+}
+
+int b64delim(HANDLE source, HANDLE dest, char * Buf)
+{
+	unsigned long got, ret;
+	ReadFile(source, Buf, BLOCK >> 1, &got, NULL);
+	//printf("got %d bytes. Buf: %p\n", got, Buf); getch();
+	while (got)
+	{
+		ret = _base64delim(Buf, Buf, got);
+		//printf("got to be: %d bytes. Buf: %p\n", got, Buf); getch();
+		WriteFile(dest, Buf, ret, &got, NULL); printf(".");
+		if (!got) return showerr("Skip processing 0 filesize");
+		ReadFile(source, Buf, BLOCK >> 1, &got, NULL);
+	}
+	//printf("\n");
+	SetEndOfFile(dest); // truncate
 	return 1;
 }
 
@@ -252,7 +304,8 @@ int ms; clock_t tic, tac, toe;
 	bool uppercase = false;
 	const _TCHAR* trx[] = {
 		"Hex to bin", "Bin to hex", "Base64 encode",
-		"Base64 decode", "Boolean bits", "Bits to bin"
+		"Base64 decode", "Boolean bits", "Bits to bin",
+		"Trim/sanitize Base64 encoded data", "Delimits/prettify Base64 encoded data"
 	};
 	//const _TCHAR* ext[] = { ".bin", ".hex" };
 	//const _TCHAR* ext[] = { ".bin", ".hex", ".b64", ".d64" };
@@ -265,6 +318,10 @@ int ms; clock_t tic, tac, toe;
 		case 'b': case 'B': mode = tobin; break;
 		case 'd': case 'D': mode = dec64; break;
 		case 'e': case 'E': mode = enc64; break;
+		case 't': case 'T': mode = trim64; break;
+		case 'l': case 'L': mode = delim64; break;
+		case 'i': case 'I': mode = tobits; break;
+		case 'n': case 'N': mode = bits2bin; break;
 		case 'h': case 'x': mode = tohex; break;
 		case 'H': case 'X': mode = tohex; uppercase = true; break;
 		default: return showerr(strcat("Invalid option :", args[1]));
@@ -288,21 +345,23 @@ int ms; clock_t tic, tac, toe;
 		if(prepfile(args[i], &source, &dest, mode))
 		{
 
+//----------------------------------------------------
 tic = clock();
-
+//----------------------------------------------------
 			GetFileSizeEx(source, &fsz);
 			printf("%I64d bytes. Please wait..\n", fsz.QuadPart);
 			switch (mode) {
 				case tobin: cvtobin(source, dest, Buf); break;
 				case tohex: cvtohex(source, dest, Buf, uppercase); break;
-                case enc64: b64enc(source, dest, Buf); break;
-                case dec64: b64dec(source, dest, Buf); break;
+				case enc64: b64enc(source, dest, Buf); break;
+				case dec64: b64dec(source, dest, Buf); break;
+				case trim64: b64trim(source, dest, Buf); break;
+				case delim64: b64delim(source, dest, Buf); break;
 				default: return showerr(strcat("Invalid option :", args[1]));
 			}
-
-
+//----------------------------------------------------
 tac = clock() - tic; ms = tac * 1000 / CLOCKS_PER_SEC;
-
+//----------------------------------------------------
 			GetFileSizeEx(dest, &fsz);
 			printf("\nDone. %I64d bytes written to: \"%s%s\". ", fsz.QuadPart, args[i], ext[mode]);
 			//printf("timer: %d days, %.02d:%.02d:%.02d.%d seconds\n", ms/MS_DAY, (ms%MS_DAY)/MS_HOUR, (ms%MS_HOUR)/MS_MINUTE, (ms%MS_MINUTE)/1000, ms%1000);
@@ -315,7 +374,6 @@ tac = clock() - tic; ms = tac * 1000 / CLOCKS_PER_SEC;
 	}
 	free(Buf);
 	printf("\n");
-
 
 	return 0;
 }

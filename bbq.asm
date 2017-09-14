@@ -4,12 +4,23 @@ PAGE 255, 255
 ; Adrian H, Ray AF and Raisa NF of PT Softindo, Jakarta
 ; email: aa _at_ softindo.net
 ; All right reserved
+; 
+; Version: 0.0.021-OK
+; Created: 2003.01.01
+; Updated: 2008.01.01
+;
+; Changelog:
 ;
 ; ---------
 ; Synopsys:
-;   Conversion library hex2bin and bin2hex
+;   Conversion library hex2bin and bin2hex, base64encode/decode
+;
+;   For all function, source and destination buffer can reside
+;   on the same address (overwriting itself), this very useful
+;   to conserve memory (such as on embedded system).
+;
 ;   Please read on the respective procedures to see what they do
-
+;
 
 .486
 .model flat, stdcall
@@ -18,6 +29,7 @@ option casemap: none
 LOCALS @@
 
 .data
+align 4
 ; *************************************************************************
   hexLo db "0123456789abcdef"
   hexUp db "0123456789ABCDEF"
@@ -234,13 +246,14 @@ __bin2base4 proc source:DWORD, dest:DWORD, count:DWORD
 __bin2base4 endp
 
 .data
+align 4
 ; *************************************************************************
   base64encode_table db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
      ; with a necessary bloat to allow hi 2 bits resulted in the same char
      ; If you want to be even faster, use these ugly catch-all,
-     ; db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-     ; db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-     ; db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+     ;db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+     ;db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+     ;db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
     ;
     ;	"A" 0x41 = 0	"Q" 9x51 = 16	"g" 0x67 = 32	"w" 0x77 = 48
@@ -270,21 +283,21 @@ __bin2base4 endp
     ;         0x61 - 0x6f  "a" - "o"	=    [16..40]
     ;         0x50 - 0x5a  "p" - "z"	=    [41..51]
 
-
   base64decode_table db 2bh dup(0)
-    db 61,0,0,0,62					; 0x2b-0x2f
+    db 62,00,00,00,63					; 0x2b-0x2f
     db 52,53,54,55,56,57,58,59,60,61,00,00,00,00,00,00	; 0x30-0x3f
     db 00,00,01,02,03,04,05,06,07,08,09,10,11,12,13,14	; 0x40-0x4f
     db 15,16,17,18,19,20,21,22,23,24,25,00,00,00,00,00	; 0x50-0x5f
     db 00,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40	; 0x60-0x6f
     db 41,42,43,44,45,46,47,48,49,50,51,00,00,00,00,00	; 0x70-0x7f
+    db 80h dup(0) ; a necessary bloat to avoid cmp
 
 .code
 ; *************************************************************************
 align 4
 public __base64encode
  __base64encode proc source:DWORD, dest:DWORD, count:DWORD
-; translate data to its base64 digit representation
+; translate data to its base64 digit representation RFC3548
 ; returns EAX: bytes encoded = (count + 2) / 3 * 4, always divisible by 4
 ;
 ; This function using backward direction scan
@@ -298,7 +311,9 @@ public __base64encode
 
     mov ecx,count
     test ecx,ecx
-    jnz @@Start
+    jz @@ZeroCount
+    jmp @@Start
+    @@ZeroCount:
     xor eax,eax
     ret
 
@@ -434,8 +449,8 @@ __base64decode proc source:DWORD, dest:DWORD, count:DWORD
 ; "===9" will be decoded as "AAA9" since all of "=" are malformed.
 ;
 ; If count is not divisible by 4, then char "=" is assumed as padding,
-; no literal padding allowed anymore, any other occurences of "=" will
-; be silently translated as 0 ("A")
+; ;- no literal padding allowed anymore, any other occurences of "="
+; ;- will be silently translated as 0 ("A")
 ;
 ; Any invalid/unknown base64 characters will be simply translated as 0 as well
 ;
@@ -452,10 +467,12 @@ __base64decode proc source:DWORD, dest:DWORD, count:DWORD
 ;
 ; dest must have enough space for 1 or 2 bytes extra padding translation as 0
 ; ie. dest size must be: (count + 3) / 4 * 3
-
     mov ecx,count
-    cmp ecx,1
-    ja @@Start
+    test ecx,ecx
+    jz @@ZeroCount
+    jmp @@Start
+
+    @@ZeroCount:
     xor eax,eax
     ret
 
@@ -465,21 +482,21 @@ __base64decode proc source:DWORD, dest:DWORD, count:DWORD
     push edi
 
     mov esi, source
-    mov eax,ecx
+    mov eax, ecx
     mov edi, dest
 
-    shr eax,2; div 4
+    shr eax,2			; div 4
     lea ebx, base64decode_table
-    lea eax,[eax*2+eax]
-
-    push eax	; count / 4 *3
+    lea eax, [eax*2 + eax]	; count / 4 * 3
+    push eax
 
     movzx eax, word ptr [esi+ecx-2]
-    push eax	; last 2 bytes (could be overwritten if source=dest and count < 9)
+    push eax		; last 2 bytes (could be overwritten if source=dest and count < 9)
+                        ; only used for checking if count is divisible by 4
 
   @@Loop:
     sub ecx,4
-    jl @@LastCheck
+    jb @@LastCheck
 
     movzx edx, byte ptr [esi]
     movzx eax, byte ptr [esi+1]
@@ -508,22 +525,21 @@ __base64decode proc source:DWORD, dest:DWORD, count:DWORD
     jmp @@Loop
 
   @@LastCheck:
-    pop edx		;// 2 chars at end  
+    pop edx		;// 2 chars at the end
     add ecx,4
     jnz @@LastCheckMod	;// size is not divisible by 4
 
   @@LastCheckZero:
     mov eax,[esp]
-    movzx edx, word ptr [esi+2]
-    cmp dh, "="
-    jnz @@Done
-    dec eax
     cmp dl, "="
-    mov [esp], eax
-    jnz @@Done
-    dec eax
-    mov [esp], eax
+    jz @@dec2
+    cmp dh, "="
+    jz @@dec1
     jmp @@Done
+    @@dec2: dec eax
+    @@dec1: dec eax
+    mov [esp], eax
+    dec0: jmp @@Done
 
   @@LastCheckMod: ;// size is not divisible by 4
     ; 1 byte source => 1 byte dest
@@ -565,4 +581,241 @@ __base64decode proc source:DWORD, dest:DWORD, count:DWORD
     ret
 
 __base64decode endp
+
+; *************************************************************************
+align 4
+public __trimCRLF
+__trimCRLF proc source:DWORD, dest:DWORD, count:DWORD
+    mov ecx,count
+
+  @@Start:
+    push ebx
+    push esi
+    push edi
+    mov esi, source
+    mov edi, dest
+
+    add ecx, esi
+
+    push edi
+
+  @@Loop:
+    cmp esi,ecx
+    jae @@Done
+
+    mov al, [esi]
+    add esi, 1
+
+    cmp al, 0ah
+    jz @@next
+    cmp al, 0dh
+    jz @@next
+
+    mov [edi], al
+    add edi, 1
+
+  @@next: jmp @@Loop
+
+  @@Done:
+    mov eax, edi
+    pop ecx
+    pop edi
+    pop esi
+    pop ebx
+    sub eax,ecx
+    ret
+
+__trimCRLF endp
+
+; *************************************************************************
+align 4
+public __trimCharTable
+__trimCharTable proc source:DWORD, dest:DWORD, count:DWORD, CharTable: DWORD
+; strip characters that are not marked true in char table 
+; returns EAX: new size
+; 
+; source and dest can be the same but should not overlap
+; (if overlapped, DEST must be equal or in higher address than source)
+;
+    mov ecx,count
+
+  @@Start:
+    push ebx
+    push esi
+    push edi
+    mov esi, source
+    mov edi, dest
+    mov ebx, CharTable
+    add ecx, esi
+    push edi	; original dest address
+    xor eax,eax
+
+  @@Loop:
+    cmp esi,ecx
+    jae @@Done
+
+    mov al, [esi]
+    add esi, 1
+    test byte ptr [ebx+eax], -1
+    jz @@next
+
+    mov [edi], al
+    add edi, 1
+
+  @@next: jmp @@Loop
+
+  @@Done:
+    mov eax, edi
+    pop ecx
+    pop edi
+    pop esi
+    pop ebx
+    sub eax, ecx
+    ret
+
+__trimCharTable endp
+
+; *************************************************************************
+align 4
+public __putDelimiter2
+__putDelimiter2 proc source:DWORD, dest:DWORD, count:DWORD, blockSize: DWORD, delimiter: WORD
+; put delimiter (max 2 chars) for every block size,
+; if the second char is null, then only the first char is used as delimiter
+; returns EAX: new size
+; 
+; source and dest can be the same but should not overlap
+; (if overlapped, DEST must be equal or in higher address than source)
+
+  @@Start:
+    push ebx
+    push esi
+    push edi
+    mov esi, source
+    mov edi, dest
+
+    mov eax,count
+    push eax		; original count
+
+    mov ebx, blockSize
+
+    test eax,eax
+    jz @@Done
+
+    and ebx,-2
+    jz @@simplecopy
+
+    lea esi, [esi+eax-1]
+
+    mov ecx,eax		; save esi original count
+    ;dec eax		; dec:1 to get floor value from div
+
+    xor edx,edx
+    div ebx
+    mov ebx,ecx		; save esi original count, again?
+
+    ;- lea ecx, [ecx+eax*2]; result/quotient * 2 bytes delimiters
+    ;- add ecx,eax
+    add ecx,eax		; result/quotient * 1 byte delimiters' count
+    test byte ptr [delimiter+1], -1
+    jz @@setDestEnd
+    add ecx,eax		; result/quotient * additional 1 byte delimiters' count
+
+    @@setDestEnd: lea edi, [edi+ecx-1]
+
+    ;push ecx		; end-result size/count
+    mov [esp], ecx
+    mov ecx,edx		; remainder
+    std
+    rep movsb
+
+    sub ebx,edx		; dec. esi count by remainder
+    ;jbe @@Done		; never will happen
+
+    mov ecx, blockSize
+    movzx edx, delimiter
+
+    test dh, -1
+    jz @@Loop1
+    jmp @@Loop2
+
+  @@Loop2:
+    sub ebx, ecx
+    jb @@Done
+    mov [edi-1],dx
+    sub edi,2
+    rep movsb
+    mov ecx, blockSize
+    jmp @@Loop2
+
+  @@Loop1:
+    sub ebx, ecx
+    jb @@Done
+    mov [edi],dl
+    sub edi,1
+    rep movsb
+    mov ecx, blockSize
+    jmp @@Loop1
+
+  @@Loop4:
+    sub ebx, ecx
+    jb @@Done
+    mov [edi-3],edx
+    sub edi,4
+    rep movsb
+    mov ecx, blockSize
+    jmp @@Loop4
+
+    @@simplecopy:
+    cmp esi, edi
+    jz @@Done
+    mov ecx,eax
+    shr ecx,2
+    cld
+    rep movsd
+    mov ecx,eax
+    and ecx,3
+    rep movsb
+    jmp @@Done
+
+  @@Done:
+    cld		; crap! this shit must be cleared afterwise
+		; someone takes for granted that this is already clear
+    pop eax
+    pop edi
+    pop esi
+    pop ebx
+    ret
+
+__putDelimiter2 endp
+
+; *************************************************************************
+align 4
+public __base64trim
+__base64trim proc source:DWORD, dest:DWORD, count:DWORD
+    push OFFSET base64decode_table
+    push count
+    push dest
+    push source
+    mov byte ptr [base64decode_table+"A"], 1	; temporary make it true
+    mov byte ptr [base64decode_table+"="], 1	; temporary make it true
+    call __trimCharTable
+    mov byte ptr [base64decode_table+"A"], 0	; turn back original value
+    mov byte ptr [base64decode_table+"="], 0	; temporary make it true
+    ret
+__base64trim endp
+
+; *************************************************************************
+align 4
+public __base64delim
+__base64delim proc source:DWORD, dest:DWORD, count:DWORD
+    push 0a0dh
+    push 64
+    push count
+    push dest
+    push source
+    call __putDelimiter2
+    ret
+__base64delim endp
+
+
 end

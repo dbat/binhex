@@ -1,6 +1,6 @@
 @echo OFF
 
-if "%OS%"=="WinNT" setLocal
+if "%OS%"=="Windows_NT" setLocal
 rem set your PATH here to tasm and bcc55
 rem set PATH=
 
@@ -20,7 +20,7 @@ set "ASRC=bbq"
 set "CSRC=binhex"
 
 
-if "%OS%"=="WinNT" pushd "%~dp0"
+if "%OS%"=="Windows_NT" pushd "%~dp0"
 
 echo.
 echo.- assembling %asrc%.asm
@@ -38,4 +38,5 @@ echo.
 echo.Done
 
 
-if "%OS%"=="WinNT" popd
+if "%OS%"=="Windows_NT" popd
+::pause
