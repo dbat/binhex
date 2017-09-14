@@ -7,85 +7,65 @@ Translate/convert binary files to their hexadecimal representation (and vice ver
     Email: aa _AT_ softindo.net
     All rights reserved.
 
-    Version: 0.1.4 build 016
+    Version: 0.1.5 build 019
     Created: 2006.03.14
-    Revised: 2011.09.02
-    
+    Revised: 2011.09.05
+
     Assembled/compiled with Borland's TASM32 and BCC 5.5 (Freeware)
-    
-    //assemble: tasm32 /q /la /ml /zn bbq.asm - all those switches are don't really matters :)
-    //compile:  bcc32 /c binhex.c
-    //link:     ilink32 c0x32 binhex bbq,binhex,,import32 cw32
 
+    SYNOPSYS:
+        - Translate binary files to their hexadecimal representation
+          (and vice versa)
 
- SYNOPSYS:
- 
-        Translate/convert binary files to their hexadecimal
-        representation (and vice versa)
-        
-        Base64 encode/decode (See .asm source code for more information)
+        - Base64 encode/decode (See .asm source code for more info)
 
-        Originally created to compress a huge 8GB pi hex data, produces
-        smaller and significantly faster than ordinary packer (zip, 7z)
+    Originally created to compress a huge 8GB pi hex data, produces
+    smaller and significantly faster than ordinary packer (zip, 7z).
 
- USAGE:
- 
-        binhex.exe -b|-h|-e|-d filenames...
+    USAGE:
+        binhex.exe <switch> <filenames>...
 
- ARGUMENTS:
- 
-        This program expects at least 2 arguments.
+    ARGUMENTS:
+        This program expects at least 2 arguments:
 
-        option -b: translate target file to binary (compress).
-               -h or -x: translate to hexadecimal (expand).
-               -H or -X: translate to hexadecimal (uppercase).
-               -e, -d: base64 encode / decode.
+        <switch>: You may use slash: "/" intead of hyphen/dash: "-"
+          -b: translate target file to binary (compress)
+          -h or -x: translate to hexadecimal (expand)
+          -H or -X: translate to hexadecimal (uppercase)
 
-        filenames: one or more files to be translated.
+          -e, -d: base64 encode/decode
+          -l: prettify base64 encoded data paragraphs with CR/LF
+          -t: trim CR/LF (also any other invalid base64 characters)
 
- NOTES:
- 
-        For each processed file, a NEW file created with the same
-        name as the original, but with additional extension: ".hex"
-        ".bin", ".b64" (base64) or ".dec" (decoded), respectively,
-        according to the option switch.
+        <filenames>: One or more files to be translated.
 
-        The .bin file will be half and the .hex will be twice in
-        size of the original file size.
-
-        The filesize to be translated to .bin should be even (mult.
-        of 2), otherwise an imaginary '0' char will be appended.
-        It must also contain hexadecimal characters only, any other
-        characters will be simply translated to '0' (zero).
+    NOTES:
+        For each processed file, a new file will be created with
+        the same name as original, but with additional extension:
+        ".bin", ".hex", ".enc" (base64 encoded), ".dec" (decoded),
+        "-crlf" (delimited) or "-trim" (trimmed), respectively,
+        according to the option/switch given.
 
         Beware, this program is ridiculously fast!
 
- EXAMPLES:
-
-   - Create .hex file from each of these binary files:
-
+    EXAMPLES:
+    
+    - Create .hex file from each of these binary files:
         binhex.exe -h sample.dat resource.dll pie.jpg others.iso
 
-   - Create .bin file from 1G pi hex data:
-   - 
-        (this program took less than 4 sec. while winzip took 2.5 min.
-        7z took 20+ minutes and brought down all CPU cores)
+    - Create .bin file from 1G pi hex data:
+        this program took less than 4 sec. to finish
+        winzip took it for 2.5 min.
+        7z spend 20+ min. and brought down all CPU cores
 
         binhex.exe -b pi_1024M_hex.txt
 
-   - Create .bin file from 8G pi hex data:
-   - 
-        (this program took 27 sec (cached), 7z took it in 2h:49min
-        and our winzip couldn't even handle it, too big!)
+    - Create .bin file from 8G pi hex data:
+        this program took 27 sec (cached), 7z took 3 hours!
+        and our winzip couldn't even handle it, too big.
 
         binhex.exe -b pi_8192M_hex.txt
 
-   - note:
-   
-        pi hex supposed to contain perfect random data
-        binhex.exe -b creates exactly 50% of original size,
-        other packers will produce a slightly larger result.
-
-
-
-.
+    note: pi hex supposed to contain perfect random data
+         binhex.exe -b creates exactly 50% of original size,
+         other packers will produce a slightly larger result.
