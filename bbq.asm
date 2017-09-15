@@ -4,10 +4,10 @@ PAGE 255, 255
 ; Adrian H, Ray AF and Raisa NF of PT Softindo, Jakarta
 ; email: aa _at_ softindo.net
 ; All right reserved
-; 
-; Version: 0.0.021-OK
+;
+; Version: 0.0.022-OK
 ; Created: 2003.01.01
-; Updated: 2008.01.01
+; Updated: 2008.02.01
 ;
 ; Changelog:
 ;
@@ -22,7 +22,7 @@ PAGE 255, 255
 ;   Please read on the respective procedures to see what they do
 ;
 
-.486
+.386
 .model flat, stdcall
 option casemap: none
 
@@ -283,10 +283,21 @@ align 4
     ;         0x61 - 0x6f  "a" - "o"	=    [16..40]
     ;         0x50 - 0x5a  "p" - "z"	=    [41..51]
 
-  base64decode_table db 2bh dup(0)
+;  base64decode_table db 2bh dup(0)
+;    db 62,00,00,00,63					; 0x2b-0x2f
+;    db 52,53,54,55,56,57,58,59,60,61,00,00,00,00,00,00	; 0x30-0x3f
+;    db 00,00,01,02,03,04,05,06,07,08,09,10,11,12,13,14	; 0x40-0x4f
+;    db 15,16,17,18,19,20,21,22,23,24,25,00,00,00,00,00	; 0x50-0x5f
+;    db 00,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40	; 0x60-0x6f
+;    db 41,42,43,44,45,46,47,48,49,50,51,00,00,00,00,00	; 0x70-0x7f
+;    db 80h dup(0) ; a necessary bloat to avoid cmp
+
+  base64cmp_table db 2bh dup(0)
+  ; the only difference is that index:"A" has value=64 not 0
+  ; consequently the value must be cleaned after taken by: AND 63.
     db 62,00,00,00,63					; 0x2b-0x2f
     db 52,53,54,55,56,57,58,59,60,61,00,00,00,00,00,00	; 0x30-0x3f
-    db 00,00,01,02,03,04,05,06,07,08,09,10,11,12,13,14	; 0x40-0x4f
+    db 00,64,01,02,03,04,05,06,07,08,09,10,11,12,13,14	; 0x40-0x4f
     db 15,16,17,18,19,20,21,22,23,24,25,00,00,00,00,00	; 0x50-0x5f
     db 00,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40	; 0x60-0x6f
     db 41,42,43,44,45,46,47,48,49,50,51,00,00,00,00,00	; 0x70-0x7f
@@ -345,7 +356,7 @@ public __base64encode
 
     push ebp ; using ebp, any disturbance will throw a very nasty error!
     mov ebp, eax
-
+    xor eax,eax
     test edx,edx
     jz @@Loop;				; rem:0 => divisible by 3
 
@@ -396,14 +407,14 @@ public __base64encode
 
   @@Begin1: ; 3 bytes round ; OK but weird
     ; fetch wth big-endian scheme, but must be stored as little-endian
-    ;- movzx edx,byte ptr[esi]
-    ;- shl edx,16
-    mov edx,[esi]
+    ;= mov edx,[esi]		; might get stalled -unaligned4
+    ;= bswap edx		; edx: big endian string (3bytes)
+    ;= shr edx,8		; 00:[esi]:[esi+1]:[esi+2]
+    mov dh, byte ptr[esi]
+    mov dl, byte ptr[esi+1]
     movzx eax, byte ptr [esi+2]		; get 3rd-byte
-    bswap edx
-    shr edx,8
-    ;- mov dh, byte ptr [esi+1]		; get 2nd-byte
-    ;- mov dl, byte ptr [esi+2]		; edx: big endian string (3bytes)
+    shl edx,8
+    mov dl,al
     and al,63
     shr edx,6                           ; arithmatic ops use big-endian value
     mov ch, byte ptr [ebx+eax]          ; storing use little-endian scheme
@@ -433,151 +444,244 @@ public __base64encode
 
  __base64encode endp
 
+;- ; *************************************************************************
+;- align 4
+;- public __base64decode_STRICT
+;- __base64decode_STRICT proc source:DWORD, dest:DWORD, count:DWORD
+;- ; Translate base64 data to binary,
+;- ; ANY invalid characters Base64, will be translated as "A" or 0
+;- ;
+;- ; returns EAX: bytes decoded = (count / 4 * 3) (+0/+1/+2 bytes)
+;- ; returned size might be +1 or +2 bytes, depends on circumtances
+;- ;
+;- ; This function using forward direction scan of source and dest
+;- ;
+;- ; The only valid padding is "=" or "==" at the very last 4 chars block,
+;- ; otherwise it will be silently translated as 0 (equal with "A" in base64)
+;- ; for instance, "====" decoded as  "AA==", "==A=" decoded as "AAA=",
+;- ; "===9" will be decoded as "AAA9" since all of "=" are malformed.
+;- ;
+;- ; If count is not divisible by 4, then char "=" is assumed as padding,
+;- ; ;- no literal padding allowed anymore, any other occurences of "="
+;- ; ;- will be silently translated as 0 ("A")
+;- ;
+;- ; Any invalid/unknown base64 characters will be simply translated as 0 as well
+;- ;
+;- ; Normally, padding only affect result size: -0, -1 or -2, unless on
+;- ; malformed input base64, i.e.: count is not divisible by 4, AND source
+;- ; has additional (trailing) data which can be unintentionally processed
+;- ; (because decoding is always performed in 4 bytes block) - fixed. no extra data read anymore
+;- ;
+;- ; count SHOULD be divisible by 4 for incomplete translation/conversion
+;- ; (ie. not a complete source, more data expected to come).
+;- ;
+;- ; source and dest can be the same but should not overlap
+;- ; (if overlapped, DEST must be equal or in higher address than source)
+;- ;
+;- ; dest must have enough space for 1 or 2 bytes extra padding translation as 0
+;- ; ie. dest size must be: (count + 3) / 4 * 3
+;-     mov ecx,count
+;-     test ecx,ecx
+;-     jz @@ZeroCount
+;-     jmp @@Start
+;- 
+;-     @@ZeroCount:
+;-     xor eax,eax
+;-     ret
+;- 
+;-  @@Start:
+;-     push ebx
+;-     push esi
+;-     push edi
+;- 
+;-     mov esi, source
+;-     mov eax, ecx
+;-     mov edi, dest
+;- 
+;-     shr eax,2			; div 4
+;-     lea ebx, base64cmp_table
+;-     lea eax, [eax*2 + eax]	; count / 4 * 3
+;-     push eax
+;- 
+;-     movzx eax, word ptr [esi+ecx-2]
+;-     push eax		; last 2 bytes (could be overwritten if source=dest and count < 9)
+;-                         ; only used for checking if count is divisible by 4
+;- 
+;-   @@Loop:
+;-     sub ecx,4
+;-     jb @@LastCheck
+;- 
+;-     movzx edx, byte ptr [esi]
+;-     movzx eax, byte ptr [esi+1]
+;-     ;- and dl, 7fh
+;-     ;- and al, 7fh
+;-     mov dl, byte ptr [ebx+edx]
+;-     mov al, byte ptr [ebx+eax]
+;-     and dl,63
+;-     and al,63
+;-     shl edx, 6
+;-     or edx, eax
+;-     mov al, byte ptr [esi+2]
+;-     ;- and al, 7fh
+;-     shl edx, 6
+;-     mov al, byte ptr [ebx+eax]
+;-     and al,63
+;-     or edx, eax
+;-     mov al, byte ptr [esi+3]
+;-     shl edx, 6
+;-     mov al, byte ptr [ebx+eax]
+;-     and al,63
+;-     add esi, 4
+;-     or eax, edx
+;-     shr edx, 16
+;-     mov byte ptr[edi], dl
+;-     mov byte ptr[edi+1], ah
+;-     mov byte ptr[edi+2], al
+;-     add edi,3
+;- 
+;-     jmp @@Loop
+;- 
+;-   @@LastCheck:
+;-     pop edx		;// 2 chars at the end
+;-     add ecx,4
+;-     jnz @@LastCheckMod	;// size is not divisible by 4
+;- 
+;-   @@LastCheckZero:
+;-     mov eax,[esp]
+;-     cmp dl, "="
+;-     jz @@dec2
+;-     cmp dh, "="
+;-     jz @@dec1
+;-     jmp @@Done
+;-     @@dec2: dec eax
+;-     @@dec1: dec eax
+;-     mov [esp], eax
+;-     dec0: jmp @@Done
+;- 
+;-   @@LastCheckMod: ;// size is not divisible by 4
+;-     ; 1 byte source => 1 byte dest
+;-     ; 2 byte source => 2 byte dest
+;-     ; 3 byte source => 2 byte dest
+;-     inc dword ptr [esp]
+;-     movzx eax, byte ptr [esi]
+;-     movzx edx, byte ptr [esi+1]
+;-     ;- and al,7fh
+;-     ;- and dl,7fh
+;-     mov al, byte ptr [ebx+eax]
+;-     mov dl, byte ptr [ebx+edx]
+;-     and al,63
+;-     and dl,63
+;-     shl eax,2
+;-     mov byte ptr[edi], al
+;-     shl eax,4
+;-     dec ecx
+;-     jz @@Done
+;-     or eax,edx
+;-     inc dword ptr [esp]
+;-     shl eax,4
+;-     mov dl, byte ptr [esi+2]
+;-     mov byte ptr[edi], ah
+;-     mov byte ptr[edi+1], al
+;-     ;- and dl,7fh
+;-     dec ecx
+;-     jz @@Done
+;-     mov dl, byte ptr [ebx+edx]
+;-     and dl,63
+;-     shr edx,2
+;-     or eax,edx
+;-     mov byte ptr[edi+1], al
+;-     jmp @@Done
+;- 
+;-   @@Done:
+;-     pop eax
+;-     pop edi
+;-     pop esi
+;-     pop ebx
+;- 
+;-     ret
+;- 
+;- __base64decode_STRICT endp
+
 ; *************************************************************************
 align 4
 public __base64decode
 __base64decode proc source:DWORD, dest:DWORD, count:DWORD
-; Translate base64 data to binary
-; returns EAX: bytes decoded = (count / 4 * 3) (+0/+1/+2 bytes)
-; returned size might be +1 or +2 bytes, depends on circumtances
-;
-; This function using forward direction scan of source and dest
-;
-; The only valid padding is "=" or "==" at the very last 4 chars block,
-; otherwise it will be silently translated as 0 (equal with "A" in base64)
-; for instance, "====" decoded as  "AA==", "==A=" decoded as "AAA=",
-; "===9" will be decoded as "AAA9" since all of "=" are malformed.
-;
-; If count is not divisible by 4, then char "=" is assumed as padding,
-; ;- no literal padding allowed anymore, any other occurences of "="
-; ;- will be silently translated as 0 ("A")
-;
-; Any invalid/unknown base64 characters will be simply translated as 0 as well
-;
-; Normally, padding only affect result size: -0, -1 or -2, unless on
-; malformed input base64, i.e.: count is not divisible by 4, AND source
-; has additional (trailing) data which can be unintentionally processed
-; (because decoding is always performed in 4 bytes block) - fixed. no extra data read anymore
-;
-; count SHOULD be divisible by 4 for incomplete translation/conversion
-; (ie. not a complete source, more data expected to come).
-;
-; source and dest can be the same but should not overlap
-; (if overlapped, DEST must be equal or in higher address than source)
-;
-; dest must have enough space for 1 or 2 bytes extra padding translation as 0
-; ie. dest size must be: (count + 3) / 4 * 3
-    mov ecx,count
-    test ecx,ecx
-    jz @@ZeroCount
-    jmp @@Start
-
-    @@ZeroCount:
-    xor eax,eax
-    ret
+; Translate base64 data to binary, silently discard any invalid chars.
+; returns EAX: bytes decoded to original binary
 
  @@Start:
     push ebx
     push esi
     push edi
 
+    mov ecx, count
     mov esi, source
-    mov eax, ecx
     mov edi, dest
+    push edi		; store original source addr
+    lea ebx, base64cmp_table
 
-    shr eax,2			; div 4
-    lea ebx, base64decode_table
-    lea eax, [eax*2 + eax]	; count / 4 * 3
-    push eax
+    add ecx, esi
+    xor eax, eax
 
-    movzx eax, word ptr [esi+ecx-2]
-    push eax		; last 2 bytes (could be overwritten if source=dest and count < 9)
-                        ; only used for checking if count is divisible by 4
+    push ebp
+    push 4
+    pop ebp
 
   @@Loop:
-    sub ecx,4
-    jb @@LastCheck
+    cmp esi, ecx
+    jae @@Checkout
+    mov al, [esi]
+    add esi, 1
+    ;- test byte ptr[ebx+eax], -1
+    mov al, byte ptr[ebx+eax]
+    test al, al
+    jz @@Loop
+    and al, 63
+    shl edx, 6
+    or dl, al
 
-    movzx edx, byte ptr [esi]
-    movzx eax, byte ptr [esi+1]
-    and dl, 7fh
-    and al, 7fh
-    mov dl, byte ptr [ebx+edx]
-    mov al, byte ptr [ebx+eax]
-    shl edx, 6
-    or edx, eax
-    mov al, byte ptr [esi+2]
-    and al, 7fh
-    shl edx, 6
-    mov al, byte ptr [ebx+eax]
-    or edx, eax
-    mov al, byte ptr [esi+3]
-    shl edx, 6
-    mov al, byte ptr [ebx+eax]
-    add esi, 4
-    or eax, edx
-    shr edx, 16
-    mov byte ptr[edi], dl
-    mov byte ptr[edi+1], ah
-    mov byte ptr[edi+2], al
-    add edi,3
+    dec ebp
+    jnz @@Loop
 
+    mov al, dl
+    shr edx, 8
+    mov ebp, 4
+    mov [edi], dh
+    mov [edi+1], dl
+    mov [edi+2], al
+    add edi, 3
+    xor edx,edx
     jmp @@Loop
 
-  @@LastCheck:
-    pop edx		;// 2 chars at the end
-    add ecx,4
-    jnz @@LastCheckMod	;// size is not divisible by 4
-
-  @@LastCheckZero:
-    mov eax,[esp]
-    cmp dl, "="
-    jz @@dec2
-    cmp dh, "="
-    jz @@dec1
-    jmp @@Done
-    @@dec2: dec eax
-    @@dec1: dec eax
-    mov [esp], eax
-    dec0: jmp @@Done
-
-  @@LastCheckMod: ;// size is not divisible by 4
-    ; 1 byte source => 1 byte dest
-    ; 2 byte source => 2 byte dest
-    ; 3 byte source => 2 byte dest
-    inc dword ptr [esp]
-    movzx eax, byte ptr [esi]
-    movzx edx, byte ptr [esi+1]
-    and al,7fh
-    and dl,7fh
-    mov al, byte ptr [ebx+eax]
-    mov dl, byte ptr [ebx+edx]
-    shl eax,2
-    mov byte ptr[edi], al
-    shl eax,4
-    dec ecx
+  @@Checkout:
+    mov eax,ebp			; steps to go on 4 bytes block cycle = 4 - (size mod 3)
+    test ebp, 3 		;
+    pop ebp
+    lea ecx,[eax*2+eax] 	; ecx = (eax) * 3
     jz @@Done
-    or eax,edx
-    inc dword ptr [esp]
-    shl eax,4
-    mov dl, byte ptr [esi+2]
-    mov byte ptr[edi], ah
-    mov byte ptr[edi+1], al
-    and dl,7fh
-    dec ecx
-    jz @@Done
-    mov dl, byte ptr [ebx+edx]
-    shr edx,2
-    or eax,edx
-    mov byte ptr[edi+1], al
-    jmp @@Done
+    ;- 1 byte src -> invalid
+    ;- 2 bytes src -> 1 bytes dst
+    ;- 3 bytes src -> 2 bytes dst
+    shl ecx,1			; ecx = (eax) * 6
+    shl edx,cl			; shl edx (eax*6)
+    ;-- mov cl,al
+    ;-- mov al,dl
+    shr edx,8
+    mov [edi], dh
+    inc edi
+    cmp al, 1 			; check bytes short in 4 bytes cycle.
+    ja @@Done                   ; done for less than 3 => 3 = (4-1)
+    mov [edi], dl               ; 3 bytes to process
+    inc edi
 
   @@Done:
-    pop eax
+    ;- already done in @@Checkout: pop ebp
+    mov eax, edi
+    pop edx
     pop edi
     pop esi
     pop ebx
-
+    sub eax, edx
     ret
 
 __base64decode endp
@@ -631,9 +735,9 @@ __trimCRLF endp
 align 4
 public __trimCharTable
 __trimCharTable proc source:DWORD, dest:DWORD, count:DWORD, CharTable: DWORD
-; strip characters that are not marked true in char table 
+; strip characters that are translated to 0 in char table
 ; returns EAX: new size
-; 
+;
 ; source and dest can be the same but should not overlap
 ; (if overlapped, DEST must be equal or in higher address than source)
 ;
@@ -652,7 +756,7 @@ __trimCharTable proc source:DWORD, dest:DWORD, count:DWORD, CharTable: DWORD
 
   @@Loop:
     cmp esi,ecx
-    jae @@Done
+    jae @@Checkout
 
     mov al, [esi]
     add esi, 1
@@ -664,13 +768,13 @@ __trimCharTable proc source:DWORD, dest:DWORD, count:DWORD, CharTable: DWORD
 
   @@next: jmp @@Loop
 
+  @@Checkout:
+
   @@Done:
-    mov eax, edi
-    pop ecx
+    pop eax
     pop edi
     pop esi
     pop ebx
-    sub eax, ecx
     ret
 
 __trimCharTable endp
@@ -682,7 +786,7 @@ __putDelimiter2 proc source:DWORD, dest:DWORD, count:DWORD, blockSize: DWORD, de
 ; put delimiter (max 2 chars) for every block size,
 ; if the second char is null, then only the first char is used as delimiter
 ; returns EAX: new size
-; 
+;
 ; source and dest can be the same but should not overlap
 ; (if overlapped, DEST must be equal or in higher address than source)
 
@@ -792,16 +896,28 @@ __putDelimiter2 endp
 align 4
 public __base64trim
 __base64trim proc source:DWORD, dest:DWORD, count:DWORD
-    push OFFSET base64decode_table
+    push OFFSET base64cmp_table
     push count
     push dest
     push source
-    mov byte ptr [base64decode_table+"A"], 1	; temporary make it true
-    mov byte ptr [base64decode_table+"="], 1	; temporary make it true
+    ;- mov byte ptr [base64decode_table+"A"], 64	; temporary make it true
+    ;- mov byte ptr [base64decode_table+"="], 128	; temporary make it true
     call __trimCharTable
-    mov byte ptr [base64decode_table+"A"], 0	; turn back original value
-    mov byte ptr [base64decode_table+"="], 0	; temporary make it true
-    ret
+    mov ecx,eax
+    and ecx,3
+    jz @@done
+    sub ecx, 4
+    push edi
+    neg ecx
+    add edi, eax
+    push eax
+    mov al, "="
+    rep stosb
+    pop eax
+    pop edi
+    ;- mov byte ptr [base64decode_table+"A"], 0	; turn back original value
+    ;- mov byte ptr [base64decode_table+"="], 0	; temporary make it true
+  @@done: ret
 __base64trim endp
 
 ; *************************************************************************
