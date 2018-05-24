@@ -127,9 +127,11 @@ __hex2bin proc source:DWORD, dest:DWORD, count:DWORD
     xor eax,eax
     xor edx,edx
 
+    push ecx
+    shr ecx,1
+    jz @@done
+
   @@Loope:
-    sub ecx,2
-    jl @@done
     mov dl, byte ptr [esi]
     mov al, byte ptr [esi+1]
     mov dl, byte ptr [ebx+edx]
@@ -139,11 +141,13 @@ __hex2bin proc source:DWORD, dest:DWORD, count:DWORD
     add edx, eax
     mov byte ptr [edi], dl
     add edi, 1
-    jmp @@Loope
+    sub ecx,1
+    jg @@Loope
 
   @@done:
-    not ecx
-    jcxz @@done2
+    pop ecx 
+    and ecx,1
+    jz @@done2
     mov dl, byte ptr [esi]
     mov dl, byte ptr [ebx+edx]
     shl edx, 4
