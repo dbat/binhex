@@ -1,0 +1,26 @@
+batch file bh_build2.bat to compile with different asm,
+run with argument:
+
+    1 (or none): tasm (original source)
+    2: nasm
+    3: uasm
+    4: jwasm
+    5: lzasm
+
+uasm is jwasm sucessor -- the asm source code are identical, use uasm instead.
+Only 1 commented line different with original tasm source.
+
+nasm source need quite modification a bit, most annoyingly is it has to
+be manually written/calculated stack frame on enter/exit procedure.
+
+Although need some modification from original source to IDEAL mode,
+lzasm can be considered as the true TASM successor, ONLY OMF obj produced
+by lzasm can be used/linked in directly in Delphi with {$L objectfile.obj}
+
+The other assembler failed to produce 32-bit OMF obj compatible with
+Borland's TASM.
+
+Unfortunately. lzasm development apparently was stopped in 2007 and
+virtualy no documentation exists. Still, it claimed to be able to
+produce SSE3 code (I haven't tested to which extent yet).
+
