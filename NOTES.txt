@@ -3,24 +3,75 @@ run with argument:
 
     1 (or none): tasm (original source)
     2: nasm
-    3: uasm
-    4: jwasm
+    3: uasm/jwasm
+    4: ml/masm
     5: lzasm
 
+notes:
+  nasm and uasm doesn't recognized dqword it must be specified as oword.
+  fasm is useless here, it can not produce OMF object
+
+nasm
+----
+nasm source need quite modification a bit, procedure name redefined as
+label (":" appended), "public" changed to "global", "ptr" removed,
+arguments and auto size ignored, it basically doesn't recognize
+procedure construct at all ("endp" is a syntax error).
+the most annoyingly is it has to be manually written/calculated stack
+frame on enter/exit procedure (arguments protype are commented).
+
+ENTER:
+  push ebp
+  mov ebp;esp
+
+EXIT/LEAVE:
+  pop ebp
+  ret N
+
+nasm seems to be stupid, but actually it has the most flexible/powerful
+prepocessor compared to other asms. but I think for the most basic
+construct like enter/exit prolog it should already be handled internally.
+
+uasm/jwasm
+----------
 uasm is jwasm sucessor -- the asm source code are identical, use uasm instead.
-Only 1 commented line different with original tasm source.
+Only 1 commented line different with original tasm source, that is: LOCAL @@
+(which is a syntax-error in uasm/jwasm)
 
-nasm source need quite modification a bit, most annoyingly is it has to
-be manually written/calculated stack frame on enter/exit procedure.
+update:  listing file didn't show the prolog/epilog, but disasm .obj with
+         watcom's wdis shows that uasm did prepare the enter/exit stack frame.
+         (this is confusing)
 
-Although need some modification from original source to IDEAL mode,
+masm
+----
+masm stdcall function identifier decorated with arguments size as in: funcname@16
+there's no way to undecorated without external tool (such as agners' objconv)
+alternatively, we can use cdecl prototype for masm produced obj file (and
+produce public function names that almost all c compilers can agree with).
+
+unobtrusive solution is using .def file to provide conversion of function names
+between borland's style (no decoration) and ms style (decorated)
+
+fatal: masm 8 seems to produce bytecode of lea (or mov reg, offset) that
+       excluding offset, need further examination.
+
+lzasm
+-----
+Need some modification from original source to IDEAL mode,
+(Mainly just switch syntax from: "proc_name proc arg1:DWORD..." to:
+"proc proc_name arg1:DWORD..." and with just "endp" at end of proc),
+also, byte/word ptr size qualifier must be put inside brackets (this
+weird syntax is different with other asms which usually (and logically)
+put them outside bracket).
+
+Enter/exit procedure and accessing arguments offset handled by lzasm, sweet.
+
 lzasm can be considered as the true TASM successor, ONLY OMF obj produced
 by lzasm can be used/linked in directly in Delphi with {$L objectfile.obj}
-
 The other assembler failed to produce 32-bit OMF obj compatible with
 Borland's TASM.
 
 Unfortunately. lzasm development apparently was stopped in 2007 and
 virtualy no documentation exists. Still, it claimed to be able to
-produce SSE3 code (I haven't tested to which extent yet).
+produce upto SSE4 code (I haven't tested to which extent yet).
 
