@@ -1,0 +1,20 @@
+NAME bbqm
+DESCRIPTION 'Name conversion for MASM stdcall decorated name'
+EXETYPE WINDOWS
+IMPORTS
+__bin2hex = bbqm.___bin2hex@16
+__hex2bin = bbqm.___hex2bin@12
+__base64encode = bbqm.___base64encode@12
+__base64decode = bbqm.___base64decode@12
+__base64trim = bbqm.___base64trim@12
+__base64delim = bbqm.___base64delim@12
+
+__bin2base2 = bbqm.___bin2base2@12
+__bin2base4 = bbqm.___bin2base4@12
+__trimCRLF = bbqm.___trimCRLF@12
+__trimCharTable = bbqm.___trimCharTable@16
+__putDelimiter2 = bbqm.___putDelimiter2@20
+__bin2hex_sse2=bbqm.___bin2hex_sse2@16
+__hex2bin_sse2=bbqm.___hex2bin_sse2@12
+
+ 
