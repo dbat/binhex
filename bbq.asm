@@ -1000,7 +1000,7 @@ __bin2hex_mmx proc source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
   pand mm2,mm0            ;//lowercase mask (inverted)
 
   test edi,7;
-  jz @@tail_done
+  jz short @@tail_done
   @@tail_MMX:
     ;// debug only (movq triggers internal error in delphi7)
     ;// movdqu xmm0,[esi-8]     ;//
@@ -1068,7 +1068,7 @@ __bin2hex_mmx proc source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
     jmp @@Loop_MMX
 
   @@doneMMX:
-    ;//emms
+    emms
     pop ecx;
     and ecx,3;
     jz @@Done
@@ -1201,11 +1201,12 @@ __hex2bin_mmx proc source: dword, dest: dword, count: dword
     jmp @@tail_done;
 
   @@check_tail: movd eax,mm0
-    cmp ecx,-1; // short only 1 byte?
+    cmp ecx,-1; // short only by 1 byte?
+    lea ecx,[ecx+8]
     jl @@tail8;
     movd [edx],mm0; //jmp @@tail_done
 
-  @@tail_done:
+  @@tail_done: emms
   @@done:
   @@Stop:
   ret
