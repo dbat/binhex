@@ -92,7 +92,10 @@ rem if /i "%asm%"=="ml" objconv -nu- %asrc%.o %asrc%.obj
 
 ::echo. 
 echo.- compiling %csrc%.c: bcc32 %BCCINC%%BCCLIB% /c %csrc%.c
-bcc32 %BCCINC% %BCCLIB% /c %csrc%.c >nul
+del /q %csrc%.obj
+
+set "CDEF=-Dasm_%asm%"
+bcc32 -6 %CDEF% %BCCINC% %BCCLIB% /c %csrc%.c 
 
 ::echo.
 echo.- linking %csrc% %asrc%: ilink32 %LNKLIB% c0x32 %csrc% %asrc%,%csrc%,,import32 cw32
