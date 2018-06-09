@@ -69,7 +69,7 @@ int showhelp(_TCHAR* arg)
 	printf(" Created: 2006.03.14\n");
 	printf(" Revised: 2011.09.29\n\n");
 	printf(" Compiled with Borland's BCC 5.5 (freeware), assembler: %s (%s)\n", xstr(assm), xstr(supp));
-	printf(" uasm/jwasm,nasm,masm and lzasm (best) support SSE2, tasm support MMX\n\n");
+	printf(" uasm/jwasm, nasm, masm and lzasm (best) support SSE2. tasm support MMX\n\n");
 	printf(" SYNOPSYS:\n");
 	printf(" \t- Translate binary files to their hexadecimal representation\n");
 	printf(" \t  (and vice versa)\n");
