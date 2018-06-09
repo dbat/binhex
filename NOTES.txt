@@ -50,7 +50,8 @@ alternatively, we can use cdecl prototype for masm produced obj file (and
 produce public function names that almost all c compilers can agree with).
 
 unobtrusive solution is using .def file to provide conversion of function names
-between borland's style (no decoration) and ms style (decorated)
+between borland's style (no decoration) and ms style (decorated). caveat:
+library must be a DLL file (better be COFF format altogether instead).
 
 fatal: masm 8 seems to produce bytecode of lea (or mov reg, offset) that
        excluding offset, need further examination.
