@@ -5,9 +5,9 @@ PAGE 255, 255
 ; email: aa _at_ softindo.net
 ; All right reserved
 ;
-; Version: 0.0.027
+; Version: 0.0.029
 ; Created: 2003.01.01
-; Updated: 2008.02.07
+; Updated: 2008.02.09
 ;
 ; Changelog:
 ;
@@ -53,15 +53,16 @@ align 16
     db 0,10,11,12,13,14,15,0,0,0,0,0,0,0,0,0
     db 90h dup(0) ; a necessary bloat to avoid cmp
 
-align 16
-  dq06 db 10h dup(06h)
-  dq07 db 10h dup(07h)
-  dq09 db 10h dup(09h)
-  dq0a db 10h dup(0ah)
-  dq20 db 10h dup(20h)
-  dq30 db 10h dup(30h)
-  dq_bmask dw 8h dup(00ffh)
-  dq_fmask db 10h dup(0fh)
+;//-- for some reason mmx failed to get const data, we have to manually build them 
+;align 16
+;  dq06 db 10h dup(06h)
+;  dq07 db 10h dup(07h)
+;  dq09 db 10h dup(09h)
+;  dq0a db 10h dup(0ah)
+;  dq20 db 10h dup(20h)
+;  dq30 db 10h dup(30h)
+;  dq_bmask dw 8h dup(00ffh)
+;  dq_fmask db 10h dup(0fh)
 
 .code
 ; *************************************************************************
@@ -989,14 +990,38 @@ __bin2hex_sse2 proc source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
   jl @@old_bin2hex
 
   movd xmm2,ebx;         ;// true = 0, false = -`
-  movdqu xmm0,[oword ptr dq20]
+  ;//-- for some reason mmx failed to get const data, we have to manually build them 
+  ;//-- movdqu xmm0,[oword ptr dq20]
+  mov eax,20202020h
   punpcklbw xmm2,xmm2;
+  movd xmm0,eax
   punpcklbw xmm2,xmm2;
+  punpcklbw xmm0,xmm0;
+  punpcklbw xmm0,xmm0;
 
-  movdqu xmm7,[oword ptr dq_fmask] ;//movdqu xmm7,dq_fmask
-  movdqu xmm3,[oword ptr dq30] ;//movdqu xmm4,dq30
-  movdqu xmm4,[oword ptr dq07] ;//movdqu xmm4,dq07
-  movdqu xmm5,[oword ptr dq0a] ;//movdqu xmm4,dq0a
+  ;//-- movdqu xmm7,[oword ptr dq_fmask] ;//movdqu xmm7,dq_fmask
+  ;//-- movdqu xmm3,[oword ptr dq30] ;//movdqu xmm4,dq30
+  ;//-- movdqu xmm4,[oword ptr dq07] ;//movdqu xmm4,dq07
+  ;//-- movdqu xmm5,[oword ptr dq0a] ;//movdqu xmm4,dq0a
+
+  mov eax,0f0f0f0fh
+  mov edx,30303030h
+  movd xmm7,eax
+  movd xmm3,edx
+  punpcklbw xmm7,xmm7;
+  punpcklbw xmm3,xmm3;
+  punpcklbw xmm7,xmm7;
+  punpcklbw xmm3,xmm3;
+  
+  mov eax,07070707h
+  mov edx,0a0a0a0ah
+  movd xmm4,eax
+  movd xmm5,edx
+  punpcklbw xmm4,xmm4;
+  punpcklbw xmm5,xmm5;
+  punpcklbw xmm4,xmm4;
+  punpcklbw xmm5,xmm5;
+  
   pand xmm2,xmm0            ;//lowercase mask (inverted)
 
   test edi,15;
@@ -1128,16 +1153,43 @@ __hex2bin_sse2 proc source: dword, dest: dword, count: dword
   jz @@Stop
 
   @@begin:
+    push esi;
+    mov esi,eax;
+    push edi;
+    mov edi,edx;
+  
   ;// older jwasm recognized both dqword and oword. uasm (newer) only know oword
-  movdqu xmm2,oword ptr [dq20];
-  ;//movdqu xmm3,dq30;
-  movdqu xmm4,oword ptr [dq09]
-  movdqu xmm6,oword ptr [dq06]
-  movdqu xmm7,oword ptr [dq_bmask];
+  ;//-- movdqu xmm2,oword ptr [dq20];
+  ;//-- ;//movdqu xmm3,dq30;
+  ;//-- movdqu xmm4,oword ptr [dq09]
+  ;//-- movdqu xmm6,oword ptr [dq06]
+  ;//-- movdqu xmm7,oword ptr [dq_bmask];
+
+  ;//-- for some reason mmx failed to get const data, we have to manually build them 
+  mov eax,20202020h
+  mov edx,09090909h
+  movd xmm2,eax
+  movd xmm4,edx
+  punpcklbw xmm2,xmm2
+  punpcklbw xmm4,xmm4
+  punpcklbw xmm2,xmm2
+  punpcklbw xmm4,xmm4
+  mov eax,06060606h
+  mov edx,00ff00ffh
+  movd xmm6,eax
+  movd xmm7,edx
+  punpcklbw xmm6,xmm6
+  punpcklwd xmm7,xmm7
+  punpcklbw xmm6,xmm6
+  punpcklwd xmm7,xmm7
+  mov edx,30303030h
 
   @@Loop:
-    movdqu xmm1,[eax];
-    movdqu xmm3,oword ptr [dq30];
+    movdqu xmm1,[esi];
+    ;//-- movdqu xmm3,oword ptr [dq30];
+    movd xmm3,edx
+    punpcklbw xmm3,xmm3
+    punpcklbw xmm3,xmm3
 
     psubusb xmm1,xmm3     ;// N = N - 30h
     pxor xmm0,xmm0        ;// clear reg1
@@ -1172,45 +1224,355 @@ __hex2bin_sse2 proc source: dword, dest: dword, count: dword
 
     sub ecx,16;
     jl @@check_tail;
-      movq qword ptr [edx],xmm0;
-      lea eax,[eax+16];
-      lea edx,[edx+8];
+      movq qword ptr [edi],xmm0;
+      lea esi,[esi+16];
+      lea edi,[edi+8];
     jg @@Loop;
     jz @@done;
 
   @@tail8:
   @@tail_Loop:
-    mov [edx],al;
+    mov [edi],al;
     shr eax,8;
-    add edx,1;
+    add edi,1;
     sub ecx,2;
     jg @@tail_Loop
   jmp @@tail_done
 
   @@tail16:
-    movq qword ptr [ebp-16],xmm0
+    movq qword ptr [ebp-32],xmm0
     add ecx,16;
-    mov eax,[ebp-16];
+    mov eax,[ebp-32];
     cmp ecx,8;
     jl @@tail8;
-      mov [edx],eax;
-      lea edx,[edx+4];
+      mov [edi],eax;
+      lea edi,[edi+4];
       lea ecx,[ecx-8];
-      mov eax,[ebp-16+4];
+      mov eax,[ebp-32+4];
     jnz @@tail8
     jmp @@tail_done;
 
   @@check_tail:
     cmp ecx,-1;
     jl @@tail16;
-    movq qword ptr [edx],xmm0; //jmp @@tail_done
+    movq qword ptr [edi],xmm0; //jmp @@tail_done
 
   @@tail_done:
   @@done:
+    pop edi;
+    pop esi;
   @@Stop:
   ret
 
 __hex2bin_sse2 endp;
+
+; *************************************************************************
+;error- align 16
+public __bin2hex_mmx
+__bin2hex_mmx proc source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
+;//procedure bin2hex_SSE(const source: pchar; var dest; const count: integer; const upperCase: boolean); stdcall;
+; translate data to its hexadecimal representation
+; dest must have enough capacity twice of count
+; source and dest can be the same but should not overlap
+; (if overlapped, DEST must be equal or in higher address than source)
+  mov eax,[source];
+  mov edx,[dest];
+  mov ecx,[count];
+
+    test eax,eax;
+    cmovz edx,eax
+    test edx,edx;
+    jz @@Stop
+
+;//  jmp @@Start
+;//
+;//align 4
+;//  @@hexLo db '0123456789abcdef';
+;//  @@hexUp db '0123456789ABCDEF';
+
+  @@Start:
+    push esi;
+    lea esi,[eax+ecx];
+    push edi;
+    lea edi,[edx+ecx*2];
+
+  cmp [byte ptr upperCase],1;
+  push ebx
+  sbb ebx,ebx;  // zero if boolean-case > 0; allbitset if boolean-case = 0
+
+  test dl,1
+  jnz @@old_bin2hex
+  cmp ecx,16;
+  jl @@old_bin2hex
+
+  movd mm2,ebx;         ;// true = 0, false = -`
+  ;//-- for some reason mmx failed to get const data, we have to manually build them 
+  ;//-- movq mm0,qword ptr [dq20]
+  mov eax,20202020h
+  punpcklbw mm2,mm2;
+  movd mm0,eax
+  ;//punpcklbw mm2,mm2;
+  punpcklbw mm0,mm0;
+
+  ;//-- movq mm7,[qword ptr dq_fmask] ;//movdqu xmm7,dq_fmask
+  ;//-- movq mm3,[qword ptr dq30] ;//movdqu xmm4,dq30
+  ;//-- movq mm4,[qword ptr dq07] ;//movdqu xmm4,dq07
+  ;//-- movq mm5,[qword ptr dq0a] ;//movdqu xmm4,dq0a
+  
+  mov eax,0f0f0f0fh
+  mov edx,30303030h
+  movd mm7,eax
+  movd mm3,edx
+  punpcklbw mm7,mm7;
+  punpcklbw mm3,mm3;
+  
+  mov eax,07070707h
+  mov edx,0a0a0a0ah
+  movd mm4,eax
+  movd mm5,edx
+  punpcklbw mm4,mm4;
+  punpcklbw mm5,mm5;
+  
+  pand mm2,mm0            ;//lowercase mask (inverted)
+
+  test edi,7;
+  jz short @@tail_done
+  @@tail_MMX:
+    ;// debug only (movq triggers internal error in delphi7)
+    ;// movdqu xmm0,[esi-8]     ;//
+    ;// movdqu xmm1,[esi-8]     ;//
+    ;//use these 2 instructions instead on release
+    movd mm0,dword ptr[esi-4]     ;//internal error
+    movd mm1,dword ptr[esi-4]     ;// copy
+    psrlq mm0,4          ;// shr logical 4; get hi nibble
+    punpcklbw mm0,mm1   ;// unpack 1-nibble in every byte
+
+    movq mm1,mm5      ;// 9s
+    pand mm0,mm7        ;//apply bitmask for niblles
+
+    pcmpgtb mm1,mm0     ;//create mask for N <= 9
+    pandn mm1,mm4       ;//invert mask, build 8s (to be added) for N > 9
+
+    paddusb mm0,mm3     ;//add 30s
+    paddusb mm0,mm1     ;//add 8s for N > 9
+
+    por mm0,mm2         ;//apply lowercase
+    movq [edi-8],mm0    ;//movdqu [edi-16],xmm0
+
+    mov edx,edi
+    and edx,7;
+    sub edi,edx
+
+    shr edx,1
+    sub ecx,edx;
+    sub esi,edx;
+
+  @@tail_done:
+    push ecx;
+    shr ecx,3;
+    jz @@doneMMX
+
+    @@Loop_MMX:
+      sub ecx,1;
+      jl @@doneMMX
+
+      sub esi,4
+      sub edi,8
+
+      ;// debug only (movq triggers internal error in delphi7)
+      ;// movdqu xmm0,[esi]     ;//
+      ;// movdqu xmm1,[esi]     ;//
+      ;//use these 2 instructions instead on release
+      movd mm0,dword ptr[esi]     ;// internal error. skipit
+      movd mm1,dword ptr[esi]     ;// copy
+
+      psrlq mm0,4        ;// shr logical 4; get hi nibble
+      punpcklbw mm0,mm1 ;// unpack 1-nibble in every byte
+
+      movq mm1,mm5    ;// 9s
+      pand mm0,mm7      ;//apply bitmask for niblles
+
+      pcmpgtb mm1,mm0   ;//create mask for N <= 9
+      pandn mm1,mm4     ;//invert mask, build 8s (to be added) for N > 9
+
+      paddusb mm0,mm3   ;//add 30s
+      paddusb mm0,mm1   ;//add 8s for N > 9
+
+      por mm0,mm2       ;//apply lowercase
+      movq [edi],mm0   ;//movdqu [edi-16],xxmm0
+
+    jmp @@Loop_MMX
+
+  @@doneMMX: emms
+    pop ecx;
+    and ecx,3;
+    jz @@Done
+
+  @@old_bin2hex:
+    sub esi,1
+    sub edi,2
+    shl ebx,4
+    xor edx,edx
+    lea ebx,[hexUp+ebx];
+
+  @@Loop_small:
+    movzx eax,byte ptr [esi];
+    sub esi,1;
+    mov dl,al;
+    shr al,4;   ;// low nibble
+    and dl,0fh;
+
+    mov al,[ebx+eax]
+    mov ah,[ebx+edx]
+    mov [edi],ax
+    sub edi,2;
+
+    sub ecx,1;
+    jg @@Loop_small
+
+  @@Done:
+    pop ebx;
+    pop edi;
+    pop esi;
+  @@Stop:
+    ret
+
+__bin2hex_mmx endp
+
+; -------------------------------------------------------------------------
+;error- align 16
+public __hex2bin_mmx
+__hex2bin_mmx proc source: dword, dest: dword, count: dword
+;//procedure hex2bin_sse2(const source: pchar; var dest; const count: integer);
+;//// dest should be aligned 8
+; store hexadecimal string to binary, valid char '0'..'9','a'..'f'
+; 2 chars become 1 byte. invalid characters simply interpreted as '0'
+; count should be an even number, the last odd/orphaned char will
+; be stored as high nibble in the last byte. you get it don't you?
+; source and dest can be the same but should not overlap
+; (if overlapped, SOURCE must be equal or in higher address than dest)
+
+  mov ecx,[count]
+  mov edx,[dest]
+  mov eax,[source]
+  test ecx, ecx
+  jle @@Stop
+  test eax, eax
+  jz @@Stop
+  test edx, edx
+  jz @@Stop
+
+  @@begin:
+    push esi
+    mov esi,eax;
+    push edi;
+    mov edi,edx;
+  
+  ;// older jwasm recognized both dqword and oword. uasm (newer) only know oword
+
+  ;//-- movq mm2,qword ptr [dq20];
+  ;//-- ;//movdqu xmm3,dq30;
+  ;//-- movq mm4,qword ptr [dq09]
+  ;//-- movq mm6,qword ptr [dq06]
+  ;//-- movq mm7,qword ptr [dq_bmask];
+  
+  ;//-- for some reason mmx failed to get const data, we have to manually build them 
+  mov eax,20202020h;
+  mov edx,09090909h;
+  movd mm2,eax;
+  movd mm4,edx;
+  punpcklbw mm2,mm2
+  punpcklbw mm4,mm4
+
+  mov eax,06060606h;
+  mov edx,00ff00ffh;
+  movd mm6,eax;
+  movd mm7,edx;
+  punpcklbw mm6,mm6
+  punpcklwd mm7,mm7
+
+  @@Loop:
+    movq mm1,[esi];
+    ;//-- movq mm3,qword ptr [dq30];
+    mov edx,30303030h
+    movd mm3,edx
+    punpcklbw mm3,mm3
+
+    psubusb mm1,mm3     ;// N = N - 30h
+    pxor mm0,mm0        ;// clear reg1
+    pcmpgtb mm0,mm1     ;// 0 > N? (get bitmask)
+    pandn mm0,mm1       ;// apply bitmask (strip negative values)
+    ;//movdqa xmm1,xmm0      ;// copy value
+    movq mm1,mm0      ;// save first to another reg
+    pcmpgtb mm0,mm4     ;// is n > 9
+
+    pandn mm0,mm1       ;// apply mask, clear N >= 10
+    por mm1,mm2         ;// N = N or 20h (convert to lowercase)
+    psubusb mm1,mm3     ;// N = N - 30h (ceil down)
+    pxor mm5,mm5        ;// clear reg5
+    movq mm3,mm1      ;// copy xmm1
+
+    pcmpeqb mm5,mm1     ;// is N = 0? (to be not-anded)
+    pcmpgtb mm3,mm6     ;// is N > 6? (to be not-anded)
+
+    ;//paddb xmm1,dq09       ;// N = N + 9 //[internal error]
+    paddusb mm1,mm4     ;// N = N + 9
+    por mm5,mm3         ;// combine (N = 0) or (N > 6)
+    pandn mm5,mm1       ;// apply mask, (N<>0) and (N<=6)
+    por mm0,mm5         ;// combine result
+    movq mm1,mm0      ;// copy
+
+    psllw mm0,4          ;// shl 4; hi nibble
+    psrlw mm1,8          ;// shr 8; lo nibble from next byte
+
+    por mm0,mm1
+    pand mm0,mm7;//dq_bmask
+    packuswb mm0,mm0
+
+    sub ecx,8;
+    jl @@check_tail;
+      movd dword ptr[edi],mm0;
+      lea esi,[esi+8];
+      lea edi,[edi+4];
+    jg @@Loop;
+    jz @@done;
+
+  @@tail8:
+  @@tail_Loop:
+    mov [edi],al;
+    shr eax,8;
+    add edi,1;
+    sub ecx,2;
+    jg @@tail_Loop
+  jmp @@tail_done
+
+  @@tail16: ;// SSE only not used in MMX
+    movd dword ptr[ebp-16],mm0
+    add ecx,8;
+    mov eax,[ebp-16];
+    cmp ecx,4;
+    jl @@tail8;
+      mov [edi],eax;
+      lea edi,[edi+4];
+      lea ecx,[ecx-8];
+      mov eax,[ebp-16+4];
+    jnz @@tail8
+    jmp @@tail_done;
+
+  @@check_tail: movd eax,mm0
+    cmp ecx,-1; // short only by 1 byte?
+    lea ecx,[ecx+8]
+    jl @@tail8;
+    movd dword ptr[edi],mm0; //jmp @@tail_done
+
+  @@tail_done: emms
+  @@done:
+    pop edi
+    pop esi
+  @@Stop:
+  ret
+
+__hex2bin_mmx endp;
 
 end
 

@@ -5,9 +5,9 @@
 ; email: aa _at_ softindo.net
 ; All right reserved
 ;
-; Version: 0.0.027
+; Version: 0.0.029
 ; Created: 2003.01.01
-; Updated: 2008.02.07
+; Updated: 2008.02.09
 ;
 ; Changelog:
 ;
@@ -56,18 +56,19 @@ align 16
     db 0,10,11,12,13,14,15,0,0,0,0,0,0,0,0,0
     db 90h dup(0) ; a necessary bloat to avoid cmp
 
-align 16
-  dq06 db 10h dup(06h)
-  dq07 db 10h dup(07h)
-  dq09 db 10h dup(09h)
-  dq0a db 10h dup(0ah)
-  dq20 db 10h dup(20h)
-  dq30 db 10h dup(30h)
-  dq_bmask dw 8h dup(00ffh)
-  dq_fmask db 10h dup(0fh)
+;//-- for some reason mmx failed to get const data, we have to manually build them 
+;codeseg
+;option procalign:16;//align 16
+;  dq06 db 10h dup(06h)
+;  dq07 db 10h dup(07h)
+;  dq09 db 10h dup(09h)
+;  dq0a db 10h dup(0ah)
+;  dq20 db 10h dup(20h)
+;  dq30 db 10h dup(30h)
+;  dq_bmask dw 8h dup(00ffh)
+;  dq_fmask db 10h dup(0fh)
 
-codeseg; //.code
-align 4
+codeseg
 ; *************************************************************************
 ;align 4
 public __bin2hex
@@ -954,7 +955,6 @@ proc __base64delim source:DWORD, dest:DWORD, count:DWORD
 endp; //__base64delim endp
 
 ; *************************************************************************
-option procalign:16;//align 16
 public __bin2hex_sse2
 proc __bin2hex_sse2 source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
 ;//procedure bin2hex_SSE(const source: pchar; var dest; const count: integer; const upperCase: boolean); stdcall;
@@ -993,14 +993,38 @@ proc __bin2hex_sse2 source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
   jl @@old_bin2hex
 
   movd xmm2,ebx;         ;// true = 0, false = -`
-  movdqu xmm0,[oword ptr dq20]
+  ;//-- for some reason mmx failed to get const data, we have to manually build them 
+  ;//-- movdqu xmm0,[oword ptr dq20]
+  mov eax,20202020h
   punpcklbw xmm2,xmm2;
+  movd xmm0,eax
   punpcklbw xmm2,xmm2;
+  punpcklbw xmm0,xmm0;
+  punpcklbw xmm0,xmm0;
 
-  movdqu xmm7,[oword ptr dq_fmask] ;//movdqu xmm7,dq_fmask
-  movdqu xmm3,[oword ptr dq30] ;//movdqu xmm4,dq30
-  movdqu xmm4,[oword ptr dq07] ;//movdqu xmm4,dq07
-  movdqu xmm5,[oword ptr dq0a] ;//movdqu xmm4,dq0a
+  ;//-- movdqu xmm7,[oword ptr dq_fmask] ;//movdqu xmm7,dq_fmask
+  ;//-- movdqu xmm3,[oword ptr dq30] ;//movdqu xmm4,dq30
+  ;//-- movdqu xmm4,[oword ptr dq07] ;//movdqu xmm4,dq07
+  ;//-- movdqu xmm5,[oword ptr dq0a] ;//movdqu xmm4,dq0a
+  
+  mov eax,0f0f0f0fh
+  mov edx,30303030h
+  movd xmm7,eax
+  movd xmm3,edx
+  punpcklbw xmm7,xmm7;
+  punpcklbw xmm3,xmm3;
+  punpcklbw xmm7,xmm7;
+  punpcklbw xmm3,xmm3;
+  
+  mov eax,07070707h
+  mov edx,0a0a0a0ah
+  movd xmm4,eax
+  movd xmm5,edx
+  punpcklbw xmm4,xmm4;
+  punpcklbw xmm5,xmm5;
+  punpcklbw xmm4,xmm4;
+  punpcklbw xmm5,xmm5;
+  
   pand xmm2,xmm0            ;//lowercase mask (inverted)
 
   test edi,15;
@@ -1071,8 +1095,7 @@ proc __bin2hex_sse2 source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
 
     jmp @@Loop_SSE2
 
-  @@doneSSE2:
-    ;//emms
+  @@doneSSE2: ;//emms
     pop ecx;
     and ecx,7;
     jz @@Done
@@ -1132,17 +1155,44 @@ proc __hex2bin_sse2 source: dword, dest: dword, count: dword
   jz @@Stop
 
   @@begin:
+    push esi;
+    mov esi,eax;
+    push edi;
+    mov edi,edx
+
   ;// older jwasm recognized both dqword and oword. uasm (newer) only know oword
-  movdqu xmm2,[oword dq20];
-  ;//movdqu xmm3,dq30;
-  movdqu xmm4,[oword dq09];
-  movdqu xmm6,[oword dq06];
-  movdqu xmm7,[oword dq_bmask];
+  ;//-- movdqu xmm2,[oword ptr dq20];
+  ;//-- ;//movdqu xmm3,dq30;
+  ;//-- movdqu xmm4,[oword ptr dq09];
+  ;//-- movdqu xmm6,[oword ptr dq06];
+  ;//-- movdqu xmm7,[oword ptr dq_bmask];
+
+  ;//-- for some reason mmx failed to get const data, we have to manually build them 
+  mov eax,20202020h
+  mov edx,09090909h
+  movd xmm2,eax
+  movd xmm4,edx
+  punpcklbw xmm2,xmm2
+  punpcklbw xmm4,xmm4
+  punpcklbw xmm2,xmm2
+  punpcklbw xmm4,xmm4
+  mov eax,06060606h
+  mov edx,00ff00ffh
+  movd xmm6,eax
+  movd xmm7,edx
+  punpcklbw xmm6,xmm6
+  punpcklwd xmm7,xmm7
+  punpcklbw xmm6,xmm6
+  punpcklwd xmm7,xmm7
+  mov edx,30303030h
 
   @@Loop:
-    movdqu xmm1,[oword eax];
-    movdqu xmm3,[oword dq30];
-
+    movdqu xmm1,[oword ptr esi];
+    ;//-- movdqu xmm3,[oword ptr dq30];
+    movd xmm3,edx
+    punpcklbw xmm3,xmm3
+    punpcklbw xmm3,xmm3
+    
     psubusb xmm1,xmm3     ;// N = N - 30h
     pxor xmm0,xmm0        ;// clear reg1
     pcmpgtb xmm0,xmm1     ;// 0 > N? (get bitmask)
@@ -1176,41 +1226,43 @@ proc __hex2bin_sse2 source: dword, dest: dword, count: dword
 
     sub ecx,16;
     jl @@check_tail;
-      movq [qword edx],xmm0;
-      lea eax,[eax+16];
-      lea edx,[edx+8];
+      movq [qword edi],xmm0;
+      lea esi,[esi+16];
+      lea edi,[edi+8];
     jg @@Loop;
     jz @@done;
 
   @@tail8:
   @@tail_Loop:
-    mov [byte edx],al;
+    mov [byte edi],al;
     shr eax,8;
-    add edx,1;
+    add edi,1;
     sub ecx,2;
     jg @@tail_Loop
   jmp @@tail_done
 
   @@tail16:
-    movq [qword ebp-16],xmm0
+    movq [qword ebp-32],xmm0
     add ecx,16;
-    mov eax,[ebp-16];
+    mov eax,[ebp-32];
     cmp ecx,8;
     jl @@tail8;
-      mov [edx],eax;
-      lea edx,[edx+4];
+      mov [edi],eax;
+      lea edi,[edi+4];
       lea ecx,[ecx-8];
-      mov eax,[ebp-16+4];
+      mov eax,[ebp-32+4];
     jnz @@tail8
     jmp @@tail_done;
 
   @@check_tail:
     cmp ecx,-1;
     jl @@tail16;
-    movq [edx],xmm0; //jmp @@tail_done
+    movq [edi],xmm0; //jmp @@tail_done
 
   @@tail_done:
   @@done:
+    pop edi
+    pop esi
   @@Stop:
   ret
 
@@ -1218,8 +1270,8 @@ endp;
 
 ; *************************************************************************
 ;align 16
-public __bin2hex_mmx
-proc __bin2hex_mmx source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
+public __bin2hex_MMX
+proc __bin2hex_MMX source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
 ;//procedure bin2hex_SSE(const source: pchar; var dest; const count: integer; const upperCase: boolean); stdcall;
 ; translate data to its hexadecimal representation
 ; dest must have enough capacity twice of count
@@ -1256,14 +1308,32 @@ proc __bin2hex_mmx source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
   jl @@old_bin2hex
 
   movd mm2,ebx;         ;// true = 0, false = -`
-  movq mm0,[qword dq20]
+  ;//-- for some reason mmx failed to get const data, we have to manually build them 
+  ;//-- movq mm0,[qword dq20]
+  mov eax,20202020h
   punpcklbw mm2,mm2;
+  movd mm0,eax
   ;//punpcklbw mm2,mm2;
 
-  movq mm7,[qword dq_fmask] ;//movdqu xmm7,dq_fmask
-  movq mm3,[qword dq30] ;//movdqu xmm4,dq30
-  movq mm4,[qword dq07] ;//movdqu xmm4,dq07
-  movq mm5,[qword dq0a] ;//movdqu xmm4,dq0a
+  ;//-- movq xmm7,[qword dq_fmask] ;//movdqu xmm7,dq_fmask
+  ;//-- movq xmm3,[qword dq30] ;//movdqu xmm4,dq30
+  ;//-- movq xmm4,[qword dq07] ;//movdqu xmm4,dq07
+  ;//-- movq xmm5,[qword dq0a] ;//movdqu xmm4,dq0a
+  
+  mov eax,0f0f0f0fh
+  mov edx,30303030h
+  movd mm7,eax
+  movd mm3,edx
+  punpcklbw mm7,mm7;
+  punpcklbw mm3,mm3;
+  
+  mov eax,07070707h
+  mov edx,0a0a0a0ah
+  movd mm4,eax
+  movd mm5,edx
+  punpcklbw mm4,mm4;
+  punpcklbw mm5,mm5;
+  
   pand mm2,mm0            ;//lowercase mask (inverted)
 
   test edi,7;
@@ -1334,8 +1404,7 @@ proc __bin2hex_mmx source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
 
     jmp @@Loop_MMX
 
-  @@doneMMX:
-    emms
+  @@doneMMX: emms
     pop ecx;
     and ecx,3;
     jz @@Done
@@ -1369,13 +1438,13 @@ proc __bin2hex_mmx source:DWORD, dest:DWORD, count:DWORD, upperCase: BYTE
   @@Stop:
     ret
 
-endp; //__bin2hex_mmx endp
+endp; //__bin2hex_MMX endp
 
 ; -------------------------------------------------------------------------
 ;align 16
-public __hex2bin_mmx
-proc __hex2bin_mmx source: dword, dest: dword, count: dword
-;//procedure hex2bin_sse2(const source: pchar; var dest; const count: integer);
+public __hex2bin_MMX
+proc __hex2bin_MMX source: dword, dest: dword, count: dword
+;//procedure hex2bin_mmx(const source: pchar; var dest; const count: integer);
 ;//// dest should be aligned 8
 ; store hexadecimal string to binary, valid char '0'..'9','a'..'f'
 ; 2 chars become 1 byte. invalid characters simply interpreted as '0'
@@ -1395,16 +1464,40 @@ proc __hex2bin_mmx source: dword, dest: dword, count: dword
   jz @@Stop
 
   @@begin:
+    push esi
+    mov esi,eax;
+    push edi;
+    mov edi,edx;
+
   ;// older jwasm recognized both dqword and oword. uasm (newer) only know oword
-  movq mm2,[qword ptr dq20];
-  ;//movdqu xmm3,dq30;
-  movq mm4,[qword ptr dq09]
-  movq mm6,[qword ptr dq06]
-  movq mm7,[qword ptr dq_bmask];
+
+  ;//-- movq mm2,[qword ptr dq20];
+  ;//-- ;//movdqu xmm3,dq30;
+  ;//-- movq mm4,[qword ptr dq09]
+  ;//-- movq mm6,[qword ptr dq06]
+  ;//-- movq mm7,[qword ptr dq_bmask];
+
+  ;//-- for some reason mmx failed to get const data, we have to manually build them 
+  mov eax,20202020h;
+  mov edx,09090909h;
+  movd mm2,eax;
+  movd mm4,edx;
+  punpcklbw mm2,mm2
+  punpcklbw mm4,mm4
+
+  mov eax,06060606h;
+  mov edx,00ff00ffh;
+  movd mm6,eax;
+  movd mm7,edx;
+  punpcklbw mm6,mm6
+  punpcklwd mm7,mm7
 
   @@Loop:
-    movq mm1,[eax];
-    movq mm3,[qword ptr dq30];
+    movq mm1,[esi];
+    ;//-- movq mm3,[qword ptr dq30];
+    mov edx,30303030h
+    movd mm3,edx
+    punpcklbw mm3,mm3
 
     psubusb mm1,mm3     ;// N = N - 30h
     pxor mm0,mm0        ;// clear reg1
@@ -1439,17 +1532,17 @@ proc __hex2bin_mmx source: dword, dest: dword, count: dword
 
     sub ecx,8;
     jl @@check_tail;
-      movd [edx],mm0;
-      lea eax,[eax+8];
-      lea edx,[edx+4];
+      movd [edi],mm0;
+      lea esi,[esi+8];
+      lea edi,[edi+4];
     jg @@Loop;
     jz @@done;
 
   @@tail8:
   @@tail_Loop:
-    mov [edx],al;
+    mov [edi],al;
     shr eax,8;
-    add edx,1;
+    add edi,1;
     sub ecx,2;
     jg @@tail_Loop
   jmp @@tail_done
@@ -1460,8 +1553,8 @@ proc __hex2bin_mmx source: dword, dest: dword, count: dword
     mov eax,[ebp-16];
     cmp ecx,4;
     jl @@tail8;
-      mov [edx],eax;
-      lea edx,[edx+4];
+      mov [edi],eax;
+      lea edi,[edi+4];
       lea ecx,[ecx-8];
       mov eax,[ebp-16+4];
     jnz @@tail8
@@ -1471,13 +1564,13 @@ proc __hex2bin_mmx source: dword, dest: dword, count: dword
     cmp ecx,-1; // short only by 1 byte?
     lea ecx,[ecx+8]
     jl @@tail8;
-    movd [edx],mm0; //jmp @@tail_done
+    movd [edi],mm0; //jmp @@tail_done
 
   @@tail_done: emms
   @@done:
   @@Stop:
   ret
 
-endp; //__hex2bin_mmx endp;
+endp; //__hex2bin_MMX endp;
 
 end

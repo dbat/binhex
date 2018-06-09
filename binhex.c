@@ -13,15 +13,32 @@ typedef enum {tobin, tohex, enc64, dec64, tobits, bits2bin, trim64, delim64 } cv
 //__bin2hex proc source:DWORD, dest:DWORD, count:DWORD, uppercase: DWORD
 //__hex2bin proc source:DWORD, dest:DWORD, count:DWORD
 
+#define xstr(s) str(s)
+#define str(s) #s
+
 // to simplify conversion with MS Visual C style
-#define _bin2hex __bin2hex
-#define _hex2bin __hex2bin
+#ifdef assm
+	#ifdef tasm32
+		#define supp MMX
+		#define _bin2hex __bin2hex_mmx
+		#define _hex2bin __hex2bin_mmx
+	#else
+		#define supp SSE2
+		#define _bin2hex __bin2hex_sse2
+		#define _hex2bin __hex2bin_sse2
+	#endif /* assm==TASM32 */
+#else
+	#define assm unknown
+	#define supp standard
+	#define _bin2hex __bin2hex
+	#define _hex2bin __hex2bin
+#endif /*assm */
+
 #define _base64encode __base64encode
 #define _base64decode __base64decode
 //#define _base64encode_LF __base64encode_LF
 #define _base64trim __base64trim
 #define _base64delim __base64delim
-
 // in-place conversion, source an dest may be the same.
 extern __stdcall void _bin2hex(char * source, char * dest, int count, bool uppercase);
 extern __stdcall void _hex2bin(char * source, char * dest, int count);
@@ -29,6 +46,7 @@ extern __stdcall unsigned int _base64encode(char * source, char * dest, int coun
 extern __stdcall unsigned int _base64decode(char * source, char * dest, int count);
 extern __stdcall unsigned int _base64trim(char * source, char * dest, int count);
 extern __stdcall unsigned int _base64delim(char * source, char * dest, int count);
+//extern __fastcall unsigned int _base64delim(char * source, char * dest, int count);
 
 // assemble:	tasm32 /q /la /ml /zn bin2hex.asm - all those switches are don't really matters :)
 // compile:	bcc32 /c binhex.c
@@ -47,18 +65,19 @@ int showhelp(_TCHAR* arg)
 	}
 
 	printf(" \n");
-	printf(" Version: 0.1.5 build 019\n");
+	printf(" Version: 0.1.6 build 029\n");
 	printf(" Created: 2006.03.14\n");
-	printf(" Revised: 2011.09.05\n\n");
-	printf(" Assembled/compiled with Borland's TASM32 and BCC 5.5 (Freeware)\n\n");
+	printf(" Revised: 2011.09.29\n\n");
+	printf(" Compiled with Borland's BCC 5.5 (freeware), assembler: %s (%s)\n", xstr(assm), xstr(supp));
+	printf(" uasm/jwasm,nasm,masm and lzasm (best) support SSE2, tasm support MMX\n\n");
 	printf(" SYNOPSYS:\n");
 	printf(" \t- Translate binary files to their hexadecimal representation\n");
 	printf(" \t  (and vice versa)\n");
 	printf("\n");
 	printf(" \t- Base64 encode/decode (See .asm source code for more info)\n");
 	printf("\n");
-	printf(" \Originally created to compress a huge 8GB pi hex data, produces\n");
-	printf(" \smaller and significantly faster than ordinary packer (zip, 7z).\n");
+	printf(" Originally created to compress a huge 8GB pi hex data, produces\n");
+	printf(" smaller and significantly faster than ordinary packer (zip, 7z).\n");
 	printf("\n");
 	printf(" USAGE:\n");
 	printf(" \t%s <switch> <filenames>...\n\n", s);
@@ -108,9 +127,9 @@ int showhelp(_TCHAR* arg)
 	printf("	this program took 27 sec (cached), 7z took 3 hours!\n");
 	printf("	and our winzip couldn't even handle it, too big.\n\n");
 	printf("\t%s -b pi_8192M_hex.txt\n\n", s);
-	printf("   note: pi hex supposed to contain perfect random data\n", s);
+	printf("   note: pi hex supposed to contain perfect random data\n");
 	printf("         %s -b creates exactly 50%% of original size,\n", s);
-	printf("         other packers will produce a slightly larger result.\n\n", s);
+	printf("         other packers will produce a slightly larger result.\n\n");
 	//printf("\n");
 	printf(" ====================================================\n");
 	printf(" Copyright (c) 2003-2011\n");
@@ -182,11 +201,17 @@ int prepfile(_TCHAR* filename, HANDLE *source, HANDLE *dest, cvtmode mode)
 
 int cvtobin(HANDLE source, HANDLE dest, char * Buf)
 {
+    //char * q;
+    //char * b;
+    //q = malloc(BLOCK+32);
+    //b = (char *)((int)(q + 15) & 0xfffffff0); // align 16
+    
 	unsigned long got;
 	ReadFile(source, Buf, BLOCK, &got, NULL);
 	//printf("got %d bytes. Buf: %p\n", got, Buf); getch();
 	while (got)
 	{
+		if (got & 1) Buf[got] = 0; // make sure zero padded on odd size
 		_hex2bin(Buf, Buf, got);
 		WriteFile(dest, Buf, (got + 1) >> 1, &got, NULL); printf(".");
 		//printf("got to be: %d bytes. Buf: %p\n", got, Buf); getch();
@@ -194,11 +219,17 @@ int cvtobin(HANDLE source, HANDLE dest, char * Buf)
 		ReadFile(source, Buf, BLOCK, &got, NULL);
 	}
 	//printf("\n");
+	//free(q);
 	return 1;
 }
 
 int cvtohex(HANDLE source, HANDLE dest, char * Buf, bool uppercase)
 {
+    //char * q;
+    //char * b;
+    //q = malloc(BLOCK+32);
+    //b = (char *)((int)(q + 15) & 0xfffffff0); // align 16
+
 	unsigned long got;
 	ReadFile(source, Buf, BLOCK >> 1, &got, NULL);
 	//printf("got %d bytes. Buf: %p\n", got, Buf); getch();
@@ -211,6 +242,7 @@ int cvtohex(HANDLE source, HANDLE dest, char * Buf, bool uppercase)
 		ReadFile(source, Buf, BLOCK >> 1, &got, NULL);
 	}
 	//printf("\n");
+	//free(q);
 	return 1;
 }
 
@@ -291,6 +323,7 @@ int _tmain(int c, _TCHAR* args[])
 {
 	HANDLE source, dest;
 	LARGE_INTEGER fsz;
+	char * BUF;
 	char * Buf;
 	int i;
 
@@ -328,11 +361,14 @@ int ms; clock_t tic, tac, toe;
 	}
 	//printf("args2: %s\n", args[2]);
 
-	Buf = malloc(BLOCK);
-	if (!Buf) return showerr("Not enough memory");
+	BUF = malloc(BLOCK+32);
+	if (!BUF) return showerr("Not enough memory");
+
+	i = ((int)BUF + 15) & 0xfffffff0; //align 16
+	Buf = (char*)i;
 
 	//printf("\n");
-	printf("Translation mode: %s. Buffer size: %dMB\n\n", trx[mode], BLOCK >> 20);
+	printf("Translation mode: %s. Buffer size: %dMB at %pH\n\n", trx[mode], (int)BLOCK >> 20, Buf);
 
 	//for(i = 2; i < c; i++) { printf("args[%d] = %s\n", i, args[i]); }
 	//printf("c = %d\n", c);
@@ -372,7 +408,7 @@ tac = clock() - tic; ms = tac * 1000 / CLOCKS_PER_SEC;
 			CloseHandle(source);
 		}
 	}
-	free(Buf);
+	free(BUF);
 	printf("\n");
 
 	return 0;

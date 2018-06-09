@@ -25,6 +25,15 @@ rem //assemble: tasm32 /q /la /ml /zn bin2hex.asm
 rem //compile:  bcc32 /c binhex.c
 rem //link:     ilink32  c0x32  binhex bbq,binhex,,import32  cw32
 
+set "CC=bcc32c"
+set "CBIN=e:\c\bcc102\bin\"
+
+set "CC=bcc32"
+set "CBIN=e:\c\bcc55\bin\"
+if not exist %CBIN% set "CBIN="
+
+set COPTS=-6 -v -c
+
 set "ASRC=bbq"
 set "CSRC=binhex"
 rem set "ASM=tasm32 /q /la /ml /zn"
@@ -67,7 +76,6 @@ if "%~1"=="4" set "ASMOPT=/c /omf /nologo /Cx /Fl /Zf /Fm"
 
 if "%~1"=="5" set "ASMOPT=/q /la /ml /zn"
 
-
 if "%OS%"=="Windows_NT" pushd "%~dp0"
 echo.
 echo.- assembling %asrc%.asm: %ASM% %asrc%
@@ -84,6 +92,7 @@ set "ext=.%ASM%"
 if /i "%ASM%"=="tasm32" set "ext=.asm"
 
 %ASM% %ASMOPT% %ASRC%%ext% 
+set "CDEF=-Dassm=%asm% -D%asm%=%asm%"
 
 rem remove masm suffix of stdcall function name
 rem if /i "%asm%"=="ml" copy /y %asrc%.obj %asrc%-sfx.obj
@@ -91,18 +100,17 @@ rem if /i "%asm%"=="ml" objconv -ns:@12: -ns:@16: -ns:@20: %asrc%-sfx.obj %asrc%
 rem if /i "%asm%"=="ml" objconv -nu- %asrc%.o %asrc%.obj
 
 ::echo. 
-echo.- compiling %csrc%.c: bcc32 %BCCINC%%BCCLIB% /c %csrc%.c
-del /q %csrc%.obj
+echo.- compiling %csrc%.c: %CC% %COPTS% %CDEF% %BCCINC%%BCCLIB% %csrc%.c
+if exist %csrc%.obj del /q %csrc%.obj
 
-set "CDEF=-Dasm_%asm%"
-bcc32 -6 %CDEF% %BCCINC% %BCCLIB% /c %csrc%.c 
+%CBIN%%CC% %COPTS% %CDEF% %BCCINC% %BCCLIB% %csrc%.c 
 
 ::echo.
 echo.- linking %csrc% %asrc%: ilink32 %LNKLIB% c0x32 %csrc% %asrc%,%csrc%,,import32 cw32
 set "DEFFILE="
 if "%asm%"=="ml" set "DEFFILE=, %asrc%.def"
 set "LIBFILES=, import32 cw32"
-ilink32 %LNKLIB% c0x32 %csrc% %asrc%, %csrc%, ,import32 cw32 %DEFFILE%
+%CBIN%ilink32 -v %LNKLIB% c0x32 %csrc% %asrc%, %csrc%, ,import32 cw32 %DEFFILE%
 
 ::echo.
 echo.Done
