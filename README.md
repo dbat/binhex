@@ -7,11 +7,12 @@ Translate/convert binary files to their hexadecimal representation (and vice ver
     Email: aa _AT_ softindo.net
     All rights reserved.
 
-    Version: 0.1.5 build 019
+    Version: 0.1.6 build 029
     Created: 2006.03.14
-    Revised: 2011.09.05
+    Revised: 2011.09.29
 
-    Assembled/compiled with Borland's TASM32 and BCC 5.5 (Freeware)
+    Compiled with Borland's BCC 5.5 (freeware), assembler: lzasm (SSE2)
+    uasm/jwasm, nasm, masm and lzasm (best) support SSE2, tasm support MMX
 
     SYNOPSYS:
         - Translate binary files to their hexadecimal representation
